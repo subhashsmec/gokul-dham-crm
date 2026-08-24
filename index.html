@@ -149,8 +149,8 @@ table{width:100%;border-collapse:collapse}
 .plot-marker.unknown{background:#17202a;color:#fff}
 
 #mapPlotLayer{
-  position:absolute;inset:0;pointer-events:none;z-index:5;
-  transform:translate(calc(-50% + 0px),calc(-50% + 0px)) scale(1);
+  position:absolute;inset:0;pointer-events:none;z-index:50;
+  transform:translate(0,0) scale(1);
   transform-origin:center center;
   will-change:transform;
 }
@@ -974,7 +974,10 @@ function updateMap(){
   map.style.transform=mapTransform;
 
   const layer=$('mapPlotLayer');
-  if(layer) layer.style.transform=mapTransform;
+  if(layer){
+    layer.style.transform=`translate(${mapX}px, ${mapY}px) scale(${mapScale})`;
+    layer.style.transformOrigin='center center';
+  }
 
   const info=$('mapZoomInfo');
   if(info)info.textContent=`Zoom: ${Math.round(mapScale*100)}%`;
