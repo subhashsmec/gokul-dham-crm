@@ -1135,7 +1135,7 @@ function rescheduleFollowup(id){
   const next=String(input).trim();
 
   // Validate both the format and the actual calendar date.
-  const match=next.match(/^(\\d{4})-(\\d{2})-(\\d{2})$/);
+  const match=next.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if(!match){
     alert('Use date format YYYY-MM-DD.');
     return;
