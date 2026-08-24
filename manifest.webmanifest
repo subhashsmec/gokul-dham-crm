@@ -1,0 +1,10 @@
+{
+  "name":"Gokul Dham CRM",
+  "short_name":"Gokul CRM",
+  "start_url":"./",
+  "display":"standalone",
+  "background_color":"#f5f7f8",
+  "theme_color":"#0f766e",
+  "description":"Free offline-first property CRM for Gokul Dham Sector-13 Hansi",
+  "icons":[{"src":"assets/icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]
+}

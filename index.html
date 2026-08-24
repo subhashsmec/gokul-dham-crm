@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0f766e">
+<meta name="description" content="Gokul Dham Sector-13 Hansi free offline-first property CRM">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="assets/icon.svg">
+<title>Gokul Dham CRM</title>
+<style>
+:root{--bg:#f5f7f8;--card:#fff;--text:#17202a;--muted:#667085;--brand:#0f766e;--brand2:#115e59;--line:#e5e7eb;--danger:#b42318;--warn:#b54708;--ok:#067647}
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text)}
+header{position:sticky;top:0;z-index:5;background:var(--brand);color:#fff;padding:14px 16px;box-shadow:0 2px 10px #0002}
+header h1{font-size:20px;margin:0} header small{opacity:.85}
+nav{position:sticky;bottom:0;z-index:6;display:grid;grid-template-columns:repeat(6,1fr);background:#fff;border-top:1px solid var(--line)}
+nav button{border:0;background:#fff;padding:10px 4px;font-size:11px;color:var(--muted)}nav button.active{color:var(--brand);font-weight:700}
+main{max-width:1100px;margin:auto;padding:16px 16px 90px}.view{display:none}.view.active{display:block}
+.grid{display:grid;gap:12px}.cards{grid-template-columns:repeat(auto-fit,minmax(140px,1fr))}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:15px;box-shadow:0 1px 3px #00000008}
+.metric{font-size:25px;font-weight:800}.label{font-size:12px;color:var(--muted)}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.between{justify-content:space-between}
+button,.btn{border:0;border-radius:10px;padding:10px 13px;background:var(--brand);color:#fff;font-weight:650;cursor:pointer}.secondary{background:#e8f1f0;color:var(--brand2)}.danger{background:#fee4e2;color:var(--danger)}
+input,select,textarea{width:100%;padding:11px;border:1px solid #d0d5dd;border-radius:9px;background:#fff;font:inherit}textarea{min-height:90px}
+.formgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}.field label{display:block;font-size:12px;color:var(--muted);margin-bottom:5px}
+.list{display:grid;gap:9px;margin-top:12px}.item{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px}
+.badge{display:inline-block;border-radius:999px;padding:4px 8px;font-size:11px;font-weight:700;background:#eef2f6}.hot{background:#fee4e2;color:#b42318}.warm{background:#fff0d6;color:#b54708}.available{background:#dcfae6;color:#067647}
+.map{width:100%;border-radius:12px;border:1px solid var(--line);background:#fff}.notice{padding:12px;border-radius:10px;background:#fffaeb;color:#7a4e00;margin:10px 0}
+h2{margin-top:6px}.muted{color:var(--muted)}.small{font-size:12px}
+@media(min-width:800px){nav{position:fixed;left:0;top:58px;bottom:0;width:170px;display:flex;flex-direction:column;padding-top:10px;border-right:1px solid var(--line);border-top:0}nav button{text-align:left;padding:13px 18px}main{margin-left:170px;padding-top:28px}}
+</style>
+</head>
+<body>
+<header><h1>Gokul Dham CRM</h1><small>Sector-13, Hansi · Free offline-first version</small></header>
+<main>
+<section id="dashboard" class="view active">
+<h2>Dashboard</h2>
+<div class="grid cards" id="metrics"></div>
+<div class="card" style="margin-top:12px"><h3>Today's priorities</h3><div id="priorities" class="list"></div></div>
+</section>
+
+<section id="properties" class="view">
+<div class="row between"><h2>Resale Properties</h2><button onclick="openProperty()">+ Add Property</button></div>
+<div class="formgrid" style="margin-top:10px"><input id="pSearch" placeholder="Search plot no., size, location..." oninput="renderProperties()"><select id="pStatus" onchange="renderProperties()"><option value="">All status</option><option>Available</option><option>Hold</option><option>Sold</option></select></div>
+<div id="propertyList" class="list"></div>
+</section>
+
+<section id="map" class="view">
+<h2>Master Map</h2>
+<div class="notice">This is your supplied Gokul Dham Sector-13 Hansi map. Property availability is not inferred from the map; enter verified resale inventory in Properties.</div>
+<img class="map" src="assets/gokuldham-map.png" alt="Gokul Dham Sector-13 Hansi map">
+</section>
+
+<section id="leads" class="view">
+<div class="row between"><h2>Leads</h2><button onclick="openLead()">+ Add Lead</button></div>
+<div class="formgrid" style="margin-top:10px"><input id="lSearch" placeholder="Search name/mobile/requirement..." oninput="renderLeads()"><select id="lStatus" onchange="renderLeads()"><option value="">All status</option><option>New</option><option>Contacted</option><option>Interested</option><option>Site Visit</option><option>Negotiation</option><option>Closed</option><option>Lost</option></select></div>
+<div id="leadList" class="list"></div>
+</section>
+
+<section id="marketing" class="view">
+<h2>AI Marketing — Free Mode</h2>
+<div class="notice">This version works without a paid AI API. It uses your CRM data and rule-based market signals to create daily post drafts. You can later connect an AI provider.</div>
+<div class="card">
+<div class="formgrid">
+<div class="field"><label>Topic</label><select id="mTopic"><option>Today's resale opportunity</option><option>Corner plot</option><option>Park-facing plot</option><option>50-feet road plot</option><option>Location & connectivity</option><option>Buyer FAQ</option></select></div>
+<div class="field"><label>Plot / feature</label><input id="mPlot" placeholder="Optional plot number or feature"></div>
+</div>
+<button style="margin-top:10px" onclick="generatePost()">Generate Facebook Post</button>
+</div>
+<div id="postOutput" class="card" style="margin-top:12px;display:none"></div>
+</section>
+
+<section id="reports" class="view">
+<h2>Reports & Market Signals</h2>
+<div id="reportContent"></div>
+</section>
+</main>
+
+<nav>
+<button class="active" onclick="show('dashboard',this)">🏠<br>Dashboard</button>
+<button onclick="show('properties',this)">📐<br>Properties</button>
+<button onclick="show('map',this)">🗺️<br>Map</button>
+<button onclick="show('leads',this)">👥<br>Leads</button>
+<button onclick="show('marketing',this)">📣<br>Marketing</button>
+<button onclick="show('reports',this)">📊<br>Reports</button>
+</nav>
+
+<dialog id="propertyDlg"><form method="dialog" onsubmit="saveProperty(event)"><h3>Property</h3><input type="hidden" id="pid">
+<div class="formgrid">
+<div class="field"><label>Plot number</label><input id="plotNo" required></div>
+<div class="field"><label>Size (Sq.Yd.)</label><input id="plotSize" type="number" step="0.01" required></div>
+<div class="field"><label>Asking price (₹)</label><input id="asking" type="number" step="1"></div>
+<div class="field"><label>Status</label><select id="propStatus"><option>Available</option><option>Hold</option><option>Sold</option></select></div>
+<div class="field"><label>Corner</label><select id="corner"><option>No</option><option>Yes</option></select></div>
+<div class="field"><label>Park facing</label><select id="park"><option>No</option><option>Yes</option></select></div>
+<div class="field"><label>50-ft road</label><select id="road50"><option>No</option><option>Yes</option></select></div>
+<div class="field"><label>Location / notes</label><input id="ploc"></div>
+</div><div class="row" style="margin-top:12px"><button>Save</button><button type="button" class="secondary" onclick="propertyDlg.close()">Cancel</button></div></form></dialog>
+
+<dialog id="leadDlg"><form method="dialog" onsubmit="saveLead(event)"><h3>Lead</h3><input type="hidden" id="lid">
+<div class="formgrid">
+<div class="field"><label>Name</label><input id="lname" required></div>
+<div class="field"><label>Mobile</label><input id="lmobile" inputmode="tel"></div>
+<div class="field"><label>Budget (₹)</label><input id="lbudget" type="number"></div>
+<div class="field"><label>Required size (Sq.Yd.)</label><input id="lsize" type="number"></div>
+<div class="field"><label>Source</label><select id="lsource"><option>Facebook</option><option>WhatsApp</option><option>Phone</option><option>Referral</option><option>Other</option></select></div>
+<div class="field"><label>Status</label><select id="lstatus"><option>New</option><option>Contacted</option><option>Interested</option><option>Site Visit</option><option>Negotiation</option><option>Closed</option><option>Lost</option></select></div>
+<div class="field"><label>Preference</label><input id="lpref" placeholder="Corner / Park / 50-ft road"></div>
+<div class="field"><label>Next follow-up</label><input id="lfollow" type="date"></div>
+</div><div class="field" style="margin-top:10px"><label>Notes</label><textarea id="lnote"></textarea></div>
+<div class="row" style="margin-top:12px"><button>Save</button><button type="button" class="secondary" onclick="leadDlg.close()">Cancel</button></div></form></dialog>
+
+<script>
+const KEY='gokuldham_crm_v1';
+let db=JSON.parse(localStorage.getItem(KEY)||'null')||{properties:[],leads:[],settings:{phone:'9518035504',rateMin:40000,rateMax:45000}};
+function saveDB(){localStorage.setItem(KEY,JSON.stringify(db));renderAll()}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
+function show(id,btn){document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));document.getElementById(id).classList.add('active');document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));btn.classList.add('active');if(id==='reports')renderReports()}
+function score(l){let s=25;if(l.budget>0)s+=25;if(l.size>0)s+=15;if(l.pref)s+=15;if(['Interested','Site Visit','Negotiation'].includes(l.status))s+=20;return Math.min(100,s)}
+function renderAll(){renderDashboard();renderProperties();renderLeads();renderReports()}
+function renderDashboard(){
+const p=db.properties.filter(x=>x.status==='Available').length, hot=db.leads.filter(x=>score(x)>=75).length, sv=db.leads.filter(x=>x.status==='Site Visit').length, closed=db.leads.filter(x=>x.status==='Closed').length;
+document.getElementById('metrics').innerHTML=[['Resale Available',p],['New Leads',db.leads.filter(x=>x.status==='New').length],['Hot Leads',hot],['Site Visits',sv],['Closed',closed],['Rate Range','₹40–45K']].map(x=>`<div class="card"><div class="metric">${x[1]}</div><div class="label">${x[0]}</div></div>`).join('');
+const today=new Date().toISOString().slice(0,10);let arr=db.leads.filter(x=>x.follow===today||score(x)>=75).slice(0,6);
+document.getElementById('priorities').innerHTML=arr.length?arr.map(l=>`<div class="item"><b>${esc(l.name)}</b> <span class="badge ${score(l)>=75?'hot':'warm'}">${score(l)}/100</span><div class="small">${esc(l.mobile||'')} · ${esc(l.status)} · Follow-up ${l.follow||'—'}</div></div>`).join(''):'<div class="muted">No priority leads today.</div>';
+}
+function renderProperties(){
+let q=(document.getElementById('pSearch')?.value||'').toLowerCase(), st=document.getElementById('pStatus')?.value||'';
+let a=db.properties.filter(p=>(!st||p.status===st)&&(`${p.plotNo} ${p.size} ${p.loc}`.toLowerCase().includes(q)));
+document.getElementById('propertyList').innerHTML=a.length?a.map(p=>`<div class="item"><div class="row between"><b>Plot ${esc(p.plotNo)}</b><span class="badge ${p.status==='Available'?'available':''}">${p.status}</span></div><div class="small">${p.size} Sq.Yd. · ${p.asking?money(p.asking):'Price not entered'} · ${[p.corner==='Yes'?'Corner':'',p.park==='Yes'?'Park facing':'',p.road50==='Yes'?'50-ft road':''].filter(Boolean).join(' · ')||'Standard'}</div><div class="row" style="margin-top:8px"><button onclick="editProperty('${p.id}')">Edit</button><button class="danger" onclick="delProperty('${p.id}')">Delete</button></div></div>`).join(''):'<div class="muted">No properties entered yet. Add only verified resale inventory.</div>';
+}
+function openProperty(p={}){pid.value=p.id||'';plotNo.value=p.plotNo||'';plotSize.value=p.size||'';asking.value=p.asking||'';propStatus.value=p.status||'Available';corner.value=p.corner||'No';park.value=p.park||'No';road50.value=p.road50||'No';ploc.value=p.loc||'';propertyDlg.showModal()}
+function editProperty(id){openProperty(db.properties.find(x=>x.id===id)||{})}
+function saveProperty(e){e.preventDefault();let o={id:pid.value||uid(),plotNo:plotNo.value.trim(),size:Number(plotSize.value),asking:Number(asking.value||0),status:propStatus.value,corner:corner.value,park:park.value,road50:road50.value,loc:ploc.value.trim()};let i=db.properties.findIndex(x=>x.id===o.id);i>=0?db.properties[i]=o:db.properties.push(o);propertyDlg.close();saveDB()}
+function delProperty(id){if(confirm('Delete this property record?')){db.properties=db.properties.filter(x=>x.id!==id);saveDB()}}
+function renderLeads(){let q=(document.getElementById('lSearch')?.value||'').toLowerCase(),st=document.getElementById('lStatus')?.value||'';let a=db.leads.filter(l=>(!st||l.status===st)&&(`${l.name} ${l.mobile} ${l.pref} ${l.note}`.toLowerCase().includes(q)));document.getElementById('leadList').innerHTML=a.length?a.map(l=>`<div class="item"><div class="row between"><b>${esc(l.name)}</b><span class="badge ${score(l)>=75?'hot':score(l)>=50?'warm':''}">${score(l)}/100</span></div><div class="small">${esc(l.mobile||'')} · ${esc(l.status)} · ${esc(l.source)} · Budget ${l.budget?money(l.budget):'—'}</div><div class="small">Need: ${l.size||'—'} Sq.Yd. · ${esc(l.pref||'Any')} · Follow-up ${l.follow||'—'}</div><div class="row" style="margin-top:8px"><button onclick="editLead('${l.id}')">Edit</button>${l.mobile?`<a class="btn" href="tel:${encodeURIComponent(l.mobile)}">Call</a><a class="btn secondary" href="https://wa.me/91${l.mobile.replace(/\\D/g,'')}" target="_blank">WhatsApp</a>`:''}<button class="danger" onclick="delLead('${l.id}')">Delete</button></div></div>`).join(''):'<div class="muted">No leads yet.</div>'}
+function openLead(l={}){lid.value=l.id||'';lname.value=l.name||'';lmobile.value=l.mobile||'';lbudget.value=l.budget||'';lsize.value=l.size||'';lsource.value=l.source||'Facebook';lstatus.value=l.status||'New';lpref.value=l.pref||'';lfollow.value=l.follow||'';lnote.value=l.note||'';leadDlg.showModal()}
+function editLead(id){openLead(db.leads.find(x=>x.id===id)||{})}
+function saveLead(e){e.preventDefault();let o={id:lid.value||uid(),name:lname.value.trim(),mobile:lmobile.value.trim(),budget:Number(lbudget.value||0),size:Number(lsize.value||0),source:lsource.value,status:lstatus.value,pref:lpref.value.trim(),follow:lfollow.value,note:lnote.value.trim(),updated:new Date().toISOString()};let i=db.leads.findIndex(x=>x.id===o.id);i>=0?db.leads[i]=o:db.leads.push(o);leadDlg.close();saveDB()}
+function delLead(id){if(confirm('Delete this lead?')){db.leads=db.leads.filter(x=>x.id!==id);saveDB()}}
+function money(n){return '₹'+Number(n).toLocaleString('en-IN')}
+function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
+function generatePost(){
+let topic=mTopic.value, p=mPlot.value.trim(), available=db.properties.filter(x=>x.status==='Available'),best=available[0];let focus=p?`Plot/feature: ${p}`:(best?`Resale option: Plot ${best.plotNo}, ${best.size} Sq.Yd.`:'Verified resale inventory is limited; ask for current options.');
+let text=`Gokul Dham Sector-13, Hansi — Resale Property Opportunity\\n\\n${topic}\\n\\n${focus}\\n\\nCurrent general resale range: ₹40,000–₹45,000 per Sq.Yd. Premium location features such as corner, park-facing and 50-feet road can command a different rate.\\n\\n✔ Planned sector layout\\n✔ Parks and road connectivity\\n✔ Resale opportunities subject to verified availability\\n\\n📞 Call / WhatsApp: 9518035504\\n\\nSite visit ke liye sampark karein.\\n\\n#GokulDham #Hansi #Property #ResalePlot #HansiProperty`;
+postOutput.style.display='block';postOutput.innerHTML=`<h3>Post Draft</h3><textarea id="postText">${esc(text)}</textarea><div class="row" style="margin-top:8px"><button onclick="navigator.clipboard.writeText(postText.value)">Copy</button><a class="btn secondary" target="_blank" href="https://www.facebook.com/">Open Facebook</a></div>`}
+function renderReports(){let total=db.leads.length,src={};db.leads.forEach(l=>src[l.source]=(src[l.source]||0)+1);let sizes={};db.leads.forEach(l=>{if(l.size)sizes[l.size]=(sizes[l.size]||0)+1});let top=Object.entries(sizes).sort((a,b)=>b[1]-a[1])[0];document.getElementById('reportContent').innerHTML=`<div class="grid cards"><div class="card"><div class="metric">${total}</div><div class="label">Total leads</div></div><div class="card"><div class="metric">${db.properties.filter(p=>p.status==='Available').length}</div><div class="label">Available resale</div></div><div class="card"><div class="metric">${db.leads.filter(l=>score(l)>=75).length}</div><div class="label">Hot leads</div></div></div><div class="card" style="margin-top:12px"><h3>Demand signals</h3><p><b>Top requested size:</b> ${top?esc(top[0])+' Sq.Yd.':'Not enough data yet'}</p><p><b>Lead sources:</b> ${Object.entries(src).map(x=>esc(x[0])+': '+x[1]).join(' · ')||'No leads yet'}</p><p><b>Approved general rate:</b> ₹40,000–₹45,000/Sq.Yd.</p><p class="small muted">Premium features may have different asking rates. Do not publish an unverified plot or price.</p></div><div class="card" style="margin-top:12px"><h3>Backup</h3><button onclick="backup()">Download Backup JSON</button> <label class="btn secondary">Restore JSON<input type="file" accept=".json" hidden onchange="restore(event)"></label></div>`}
+function backup(){let blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='gokul-dham-crm-backup.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500)}
+function restore(e){let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{let x=JSON.parse(r.result);if(!Array.isArray(x.properties)||!Array.isArray(x.leads))throw Error();db=x;saveDB();alert('Backup restored.')}catch{alert('Invalid backup file.')}};r.readAsText(f)}
+renderAll();
+if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
+</script>
+</body></html>
