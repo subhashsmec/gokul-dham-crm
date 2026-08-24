@@ -502,6 +502,14 @@ function init(){
   fillSelect('category',CATEGORIES);
   fillSelect('location',LOCATIONS);
   fillSelect('status',STATUSES);
+
+  // The plot-details dialog must live outside the hidden .view sections.
+  // Otherwise it can be created successfully but remain invisible when Map is active.
+  const plotDetailsDialog=$('plotDetailsDlg');
+  if(plotDetailsDialog && plotDetailsDialog.parentElement!==document.body){
+    document.body.appendChild(plotDetailsDialog);
+  }
+
   renderAll();
   setupMap();
 }
@@ -779,6 +787,7 @@ function openPlotDetails(id){
   actions.innerHTML=html;
 
   const dlg=$('plotDetailsDlg');
+  if(dlg.parentElement!==document.body) document.body.appendChild(dlg);
   if(dlg.showModal) dlg.showModal();
   else dlg.setAttribute('open','');
 }
@@ -1030,6 +1039,10 @@ function renderMapPlotMarkers(){
     m.title='Plot '+p.number+' · Click for details · '+(p.status||'');
     m.style.left=(p.x*100)+'%';
     m.style.top=(p.y*100)+'%';
+    m.style.zIndex='20';
+    m.addEventListener('pointerdown',function(e){
+      e.stopPropagation();
+    });
     m.addEventListener('click',function(e){
       e.preventDefault();
       e.stopPropagation();
