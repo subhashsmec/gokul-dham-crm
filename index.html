@@ -174,9 +174,9 @@ table{width:100%;border-collapse:collapse}
 
   <div class="mapbox" style="margin-top:10px">
     <div class="maptools">
-      <button type="button" onclick="mapZoomIn()" title="Zoom in">+</button>
-      <button type="button" onclick="mapZoomOut()" title="Zoom out">−</button>
-      <button type="button" onclick="mapReset()" title="Reset map">Reset</button>
+      <button id="zoomInBtn" type="button" title="Zoom in">+</button>
+      <button id="zoomOutBtn" type="button" title="Zoom out">−</button>
+      <button id="mapResetBtn" type="button" title="Reset map">Reset</button>
     </div>
 
     <div class="mapzoominfo" id="mapZoomInfo">Zoom: 100%</div>
@@ -192,7 +192,7 @@ table{width:100%;border-collapse:collapse}
   </div>
 
   <div class="maphelp">
-    Laptop: mouse wheel = zoom, drag = move. Mobile: pinch = zoom, one finger = move.
+    Laptop: mouse wheel = zoom, drag = move. Mobile: pinch = zoom, one finger = move. Use the + / − / Reset buttons above.
   </div>
 </section>
 
@@ -585,19 +585,45 @@ function midpoint(a,b){
 }
 
 function setupMap(){
-  const viewport=$('mapViewport');
-  const img=$('masterMap');
+  var viewport=document.getElementById('mapViewport');
+  var img=document.getElementById('masterMap');
 
-  if(!viewport||!img)return;
+  if(!viewport || !img){
+    return;
+  }
 
-  img.addEventListener('load',()=>{
+  // Directly bind the three controls. This avoids relying on inline click handlers.
+  var zin=document.getElementById('zoomInBtn');
+  var zout=document.getElementById('zoomOutBtn');
+  var reset=document.getElementById('mapResetBtn');
+
+  if(zin) zin.addEventListener('click',function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    mapZoomIn();
+  });
+
+  if(zout) zout.addEventListener('click',function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    mapZoomOut();
+  });
+
+  if(reset) reset.addEventListener('click',function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    mapReset();
+  });
+
+  img.addEventListener('load',function(){
     mapReset();
     mapInitialized=true;
   });
 
-  viewport.addEventListener('pointerdown',e=>{
+  viewport.addEventListener('pointerdown',function(e){
     mapPointers.set(e.pointerId,e);
-    viewport.setPointerCapture(e.pointerId);
+
+    try{ viewport.setPointerCapture(e.pointerId); }catch(err){}
 
     if(mapPointers.size===1){
       mapDragging=true;
@@ -609,42 +635,37 @@ function setupMap(){
     }
 
     if(mapPointers.size===2){
-      const pts=[...mapPointers.values()];
+      var pts=Array.from(mapPointers.values());
       mapPinchStartDistance=distanceBetween(pts[0],pts[1]);
       mapPinchStartScale=mapScale;
       mapDragging=false;
     }
   });
 
-  viewport.addEventListener('pointermove',e=>{
-    if(!mapPointers.has(e.pointerId))return;
+  viewport.addEventListener('pointermove',function(e){
+    if(!mapPointers.has(e.pointerId)) return;
 
     mapPointers.set(e.pointerId,e);
 
     if(mapPointers.size===2){
-      const pts=[...mapPointers.values()];
-      const d=distanceBetween(pts[0],pts[1]);
+      var pts=Array.from(mapPointers.values());
+      var d=distanceBetween(pts[0],pts[1]);
 
       if(mapPinchStartDistance>0){
-        mapScale=clamp(
-          mapPinchStartScale*(d/mapPinchStartDistance),
-          1,
-          5
-        );
+        mapScale=clamp(mapPinchStartScale*(d/mapPinchStartDistance),1,5);
         updateMap();
       }
-
       return;
     }
 
-    if(!mapDragging)return;
+    if(!mapDragging) return;
 
     mapX=mapStartMapX+(e.clientX-mapStartX);
     mapY=mapStartMapY+(e.clientY-mapStartY);
     updateMap();
   });
 
-  const endPointer=e=>{
+  function endPointer(e){
     mapPointers.delete(e.pointerId);
 
     if(mapPointers.size===0){
@@ -653,32 +674,30 @@ function setupMap(){
     }
 
     if(mapPointers.size===1){
-      const remaining=[...mapPointers.values()][0];
+      var remaining=Array.from(mapPointers.values())[0];
       mapDragging=true;
       mapStartX=remaining.clientX;
       mapStartY=remaining.clientY;
       mapStartMapX=mapX;
       mapStartMapY=mapY;
     }
-  };
+  }
 
   viewport.addEventListener('pointerup',endPointer);
   viewport.addEventListener('pointercancel',endPointer);
 
-  viewport.addEventListener('wheel',e=>{
+  viewport.addEventListener('wheel',function(e){
     e.preventDefault();
 
-    const oldScale=mapScale;
-    const direction=e.deltaY<0?1:-1;
-    const nextScale=clamp(oldScale+direction*0.15,1,5);
+    var oldScale=mapScale;
+    var nextScale=clamp(oldScale+(e.deltaY<0?0.15:-0.15),1,5);
 
-    if(nextScale===oldScale)return;
+    if(nextScale===oldScale) return;
 
-    const rect=viewport.getBoundingClientRect();
-    const mouseX=e.clientX-rect.left-rect.width/2;
-    const mouseY=e.clientY-rect.top-rect.height/2;
-
-    const ratio=nextScale/oldScale;
+    var rect=viewport.getBoundingClientRect();
+    var mouseX=e.clientX-rect.left-rect.width/2;
+    var mouseY=e.clientY-rect.top-rect.height/2;
+    var ratio=nextScale/oldScale;
 
     mapX=mouseX-(mouseX-mapX)*ratio;
     mapY=mouseY-(mouseY-mapY)*ratio;
@@ -692,13 +711,13 @@ function setupMap(){
     updateMap();
   },{passive:false});
 
-  viewport.addEventListener('dblclick',()=>{
+  viewport.addEventListener('dblclick',function(e){
+    e.preventDefault();
     mapZoomIn();
   });
 
   updateMap();
 }
-
 init();
 </script>
 
