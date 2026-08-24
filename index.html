@@ -1209,6 +1209,7 @@ function showLeadActivity(id){
     alert('Activity window is not available.');
     return;
   }
+  $('activityLeadId').value=l.id;
   $('activityLeadTitle').textContent=`Activity — ${l.name}`;
   $('activityLeadMeta').textContent=`${l.mobile||''} · ${l.status||''} · ${l.followup?'Next follow-up: '+l.followup:'No follow-up'}`;
   $('activityQuick').innerHTML=`
