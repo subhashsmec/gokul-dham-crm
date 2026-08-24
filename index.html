@@ -26,6 +26,7 @@ button.wa{background:#e7f7ee;color:#087443}
 .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;box-shadow:0 1px 3px #0000000d}
 .metric{font-size:26px;font-weight:800}
 .muted{color:var(--muted);font-size:13px}
+button:disabled{opacity:.45;cursor:not-allowed;filter:grayscale(.4)}
 .formgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
 .field label{display:block;font-size:13px;color:var(--muted);margin-bottom:5px}
 input,select,textarea{width:100%;padding:11px 12px;border:1px solid #cfd5dc;border-radius:9px;background:#fff;font:inherit}
@@ -853,7 +854,8 @@ function statusActionButtons(l){
     if(next==='Booking'){
       buttons.push(`<button onclick="prepareBooking('${l.id}')">→ Booking</button>`);
     }else if(next==='Closed'){
-      buttons.push(`<button onclick="changeLeadStatus('${l.id}','Closed')">→ Closed / Sold</button>`);
+      const canClose = l.paymentStatus==='Fully Paid' && Number(l.dealPrice||0)>0;
+       buttons.push(`<button ${canClose?'':'disabled title="Deal Price and Fully Paid payment required"'} onclick="changeLeadStatus('${l.id}','Closed')">→ Closed / Sold</button>`);
     }else if(next!=='Lost'){
       buttons.push(`<button onclick="changeLeadStatus('${l.id}','${esc(next)}')">→ ${esc(next)}</button>`);
     }
@@ -896,7 +898,7 @@ function leadHTML(l){
       <div class="deal-item"><div class="deal-label">Booking Date</div><div class="deal-value">${esc(l.bookingDate||'Not set')}</div></div>
       <div class="deal-item"><div class="deal-label">Payment</div><div class="deal-value">${esc(l.paymentStatus||'Not Started')}</div></div>
     </div>${l.dealNotes?`<div class="muted" style="margin-top:8px">${esc(l.dealNotes)}</div>`:''}</div>`:''}
-    ${l.status==='Booking'?`<div class="muted" style="margin-top:8px"><b>🔒 Booking:</b> Plot is on Hold. Closed / Sold requires Fully Paid.</div>`:''}
+    ${l.status==='Booking'?`<div class="muted" style="margin-top:8px"><b>🔒 Booking:</b> Plot is on Hold. ${l.paymentStatus==='Fully Paid'&&Number(l.dealPrice||0)>0?'✅ Closed / Sold is now enabled.':'🔐 Closed / Sold unlocks only after Deal Price is set and Payment = Fully Paid.'}</div>`:''}
     ${l.status==='Closed'?`<div class="muted" style="margin-top:8px"><b>✅ Closed:</b> Plot is marked Sold.</div>`:''}
     ${l.followup?`<div class="muted" style="margin-top:7px"><b>Next Follow-up:</b> ${esc(l.followup)}</div>`:''}
     ${(() => {
