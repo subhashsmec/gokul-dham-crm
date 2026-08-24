@@ -148,6 +148,13 @@ table{width:100%;border-collapse:collapse}
 .plot-marker.blocked{background:#475467;color:#fff}
 .plot-marker.unknown{background:#17202a;color:#fff}
 
+#mapPlotLayer{
+  position:absolute;inset:0;pointer-events:none;z-index:5;
+  transform:translate(calc(-50% + 0px),calc(-50% + 0px)) scale(1);
+  transform-origin:center center;
+  will-change:transform;
+}
+
 @media(max-width:800px){
   .cards{grid-template-columns:repeat(2,1fr)}
   .filters{grid-template-columns:1fr 1fr}
@@ -215,6 +222,7 @@ table{width:100%;border-collapse:collapse}
         alt="Gokul Dham Sector-13 Hansi map"
         draggable="false"
         onerror="this.style.display='none'">
+      <div id="mapPlotLayer"></div>
     </div>
   </div>
 
@@ -325,12 +333,12 @@ table{width:100%;border-collapse:collapse}
 
     <div class="field">
       <label>Map Position X</label>
-      <input id="plotX" type="number" step="0.1" placeholder="Later">
+      <input id="plotX" type="number" step="any" min="0" max="1" placeholder="0 to 1">
     </div>
 
     <div class="field">
       <label>Map Position Y</label>
-      <input id="plotY" type="number" step="0.1" placeholder="Later">
+      <input id="plotY" type="number" step="any" min="0" max="1" placeholder="0 to 1">
     </div>
 
     <div class="field" style="grid-column:1/-1">
@@ -839,8 +847,11 @@ function updateMap(){
   const map=$('masterMap');
   if(!map)return;
 
-  map.style.transform=
-    `translate(calc(-50% + ${mapX}px), calc(-50% + ${mapY}px)) scale(${mapScale})`;
+  const mapTransform=`translate(calc(-50% + ${mapX}px), calc(-50% + ${mapY}px)) scale(${mapScale})`;
+  map.style.transform=mapTransform;
+
+  const layer=$('mapPlotLayer');
+  if(layer) layer.style.transform=mapTransform;
 
   const info=$('mapZoomInfo');
   if(info)info.textContent=`Zoom: ${Math.round(mapScale*100)}%`;
@@ -932,8 +943,14 @@ function registerPlotAtMapPoint(clientX,clientY){
   if(!viewport||!img)return;
 
   const rect=viewport.getBoundingClientRect();
-  const x=Math.max(0,Math.min(1,(clientX-rect.left)/rect.width));
-  const y=Math.max(0,Math.min(1,(clientY-rect.top)/rect.height));
+  // Convert the clicked screen point back into the map's base (100%) coordinates.
+  // This keeps plot markers attached to the correct map position while zooming/panning.
+  const screenX=clientX-rect.left-rect.width/2;
+  const screenY=clientY-rect.top-rect.height/2;
+  const baseX=screenX/mapScale-mapX+rect.width/2;
+  const baseY=screenY/mapScale-mapY+rect.height/2;
+  const x=Math.max(0,Math.min(1,baseX/rect.width));
+  const y=Math.max(0,Math.min(1,baseY/rect.height));
 
   const number=prompt('Enter the EXACT plot number shown on the map:');
   if(!number)return;
