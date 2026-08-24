@@ -177,6 +177,7 @@ table{width:100%;border-collapse:collapse}
       <button id="zoomInBtn" type="button" title="Zoom in">+</button>
       <button id="zoomOutBtn" type="button" title="Zoom out">−</button>
       <button id="mapResetBtn" type="button" title="Reset map">Reset</button>
+      <button id="mapMinBtn" type="button" title="Zoom to 10%">10%</button>
     </div>
 
     <div class="mapzoominfo" id="mapZoomInfo">Zoom: 100%</div>
@@ -192,7 +193,7 @@ table{width:100%;border-collapse:collapse}
   </div>
 
   <div class="maphelp">
-    Laptop: mouse wheel = zoom, drag = move. Mobile: pinch = zoom, one finger = move. Use the + / − / Reset buttons above.
+    Zoom range: 10%–500%. Laptop: mouse wheel = zoom, drag = move. Mobile: pinch = zoom, one finger = move. Use + / − / Reset above.
   </div>
 </section>
 
@@ -539,17 +540,12 @@ function updateMap(){
 }
 
 function mapZoomIn(){
-  mapScale=clamp(mapScale+0.25,1,5);
+  mapScale=clamp(mapScale+0.25,0.1,5);
   updateMap();
 }
 
 function mapZoomOut(){
-  mapScale=clamp(mapScale-0.25,1,5);
-
-  if(mapScale===1){
-    mapX=0;
-    mapY=0;
-  }
+  mapScale=clamp(mapScale-0.25,0.1,5);
 
   updateMap();
 }
@@ -596,6 +592,14 @@ function setupMap(){
   var zin=document.getElementById('zoomInBtn');
   var zout=document.getElementById('zoomOutBtn');
   var reset=document.getElementById('mapResetBtn');
+  var minBtn=document.getElementById('mapMinBtn');
+
+  if(minBtn) minBtn.addEventListener('click',function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    mapScale=0.1;
+    updateMap();
+  });
 
   if(zin) zin.addEventListener('click',function(e){
     e.preventDefault();
@@ -652,7 +656,7 @@ function setupMap(){
       var d=distanceBetween(pts[0],pts[1]);
 
       if(mapPinchStartDistance>0){
-        mapScale=clamp(mapPinchStartScale*(d/mapPinchStartDistance),1,5);
+        mapScale=clamp(mapPinchStartScale*(d/mapPinchStartDistance),0.1,5);
         updateMap();
       }
       return;
@@ -690,7 +694,7 @@ function setupMap(){
     e.preventDefault();
 
     var oldScale=mapScale;
-    var nextScale=clamp(oldScale+(e.deltaY<0?0.15:-0.15),1,5);
+    var nextScale=clamp(oldScale+(e.deltaY<0?0.15:-0.15),0.1,5);
 
     if(nextScale===oldScale) return;
 
@@ -702,11 +706,6 @@ function setupMap(){
     mapX=mouseX-(mouseX-mapX)*ratio;
     mapY=mouseY-(mouseY-mapY)*ratio;
     mapScale=nextScale;
-
-    if(mapScale===1){
-      mapX=0;
-      mapY=0;
-    }
 
     updateMap();
   },{passive:false});
