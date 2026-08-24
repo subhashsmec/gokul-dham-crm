@@ -131,6 +131,23 @@ table{width:100%;border-collapse:collapse}
 .plot-blocked{background:#eef2f4;color:#475467}
 .plot-mapbtn{background:#17202a}
 
+
+#mapViewport{position:relative;overflow:hidden;touch-action:none} #mapViewport.plot-mode{cursor:crosshair}
+#mapPlotLayer{position:absolute;inset:0;pointer-events:none;z-index:5}
+.plot-marker{
+  position:absolute;transform:translate(-50%,-50%);
+  min-width:42px;padding:5px 7px;border-radius:8px;
+  border:2px solid #fff;box-shadow:0 2px 8px #0005;
+  font-weight:800;font-size:12px;text-align:center;
+  pointer-events:auto;cursor:pointer;user-select:none;
+}
+.plot-marker.available{background:#027a48;color:#fff}
+.plot-marker.hold{background:#b54708;color:#fff}
+.plot-marker.negotiation{background:#175cd3;color:#fff}
+.plot-marker.sold{background:#b42318;color:#fff}
+.plot-marker.blocked{background:#475467;color:#fff}
+.plot-marker.unknown{background:#17202a;color:#fff}
+
 @media(max-width:800px){
   .cards{grid-template-columns:repeat(2,1fr)}
   .filters{grid-template-columns:1fr 1fr}
@@ -191,7 +208,7 @@ table{width:100%;border-collapse:collapse}
 
     <div class="mapzoominfo" id="mapZoomInfo">Zoom: 100%</div>
 
-    <div id="mapViewport" class="mapviewport">
+    <div class="map-toolbar" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:8px 0"><button id="addPlotOnMapBtn" type="button">+ Add Plot on Map</button><span id="mapPlotMode" class="muted">Normal map mode</span></div><div id="mapViewport" class="mapviewport">
       <img
         id="masterMap"
         src="assets/gokuldham-map.png"
@@ -723,6 +740,7 @@ function savePlot(e){
   save();
   plotDlg.close();
   renderPlots();
+  renderMapPlotMarkers();
   renderReports();
 }
 
@@ -826,7 +844,8 @@ function updateMap(){
 
   const info=$('mapZoomInfo');
   if(info)info.textContent=`Zoom: ${Math.round(mapScale*100)}%`;
-}
+
+  renderMapPlotMarkers();}
 
 function mapZoomIn(){
   mapScale=clamp(mapScale+0.25,0.1,5);
@@ -869,6 +888,98 @@ function midpoint(a,b){
   };
 }
 
+
+let mapPlotMode=false;
+
+function renderMapPlotMarkers(){
+  const layer=$('mapPlotLayer');
+  if(!layer)return;
+
+  layer.innerHTML='';
+
+  db.plots.filter(p=>p.x!=null && p.y!=null).forEach(p=>{
+    const m=document.createElement('button');
+    m.type='button';
+    m.className='plot-marker '+plotStatusClass(p.status||'unknown');
+    m.textContent=''+p.number;
+    m.title='Plot '+p.number+' · '+(p.status||'');
+    m.style.left=(p.x*100)+'%';
+    m.style.top=(p.y*100)+'%';
+    m.addEventListener('click',function(e){
+      e.preventDefault();
+      e.stopPropagation();
+      openPlot(p.id);
+    });
+    layer.appendChild(m);
+  });
+}
+
+function toggleMapPlotMode(){
+  mapPlotMode=!mapPlotMode;
+  const btn=$('addPlotOnMapBtn');
+  const label=$('mapPlotMode');
+
+  if(btn)btn.textContent=mapPlotMode?'Cancel Map Plot Mode':'+ Add Plot on Map';
+  if(label)label.textContent=mapPlotMode?'Click the CENTER of a plot on the map':'Normal map mode';
+
+  const viewport=$('mapViewport');
+  if(viewport)viewport.classList.toggle('plot-mode',mapPlotMode);
+}
+
+function registerPlotAtMapPoint(clientX,clientY){
+  const viewport=$('mapViewport');
+  const img=$('masterMap');
+  if(!viewport||!img)return;
+
+  const rect=viewport.getBoundingClientRect();
+  const x=Math.max(0,Math.min(1,(clientX-rect.left)/rect.width));
+  const y=Math.max(0,Math.min(1,(clientY-rect.top)/rect.height));
+
+  const number=prompt('Enter the EXACT plot number shown on the map:');
+  if(!number)return;
+
+  const clean=number.trim();
+  if(!clean)return;
+
+  const existing=db.plots.find(p=>String(p.number).toLowerCase()===clean.toLowerCase());
+  if(existing){
+    existing.x=x;
+    existing.y=y;
+    existing.updated=new Date().toISOString();
+    save();
+    renderPlots();
+    renderMapPlotMarkers();
+    alert('Plot '+clean+' position updated.');
+    toggleMapPlotMode();
+    return;
+  }
+
+  const p={
+    id:uid(),
+    number:clean,
+    size:0,
+    road:'',
+    facing:'Road',
+    status:'Available',
+    price:0,
+    owner:'',
+    leadId:'',
+    x:x,
+    y:y,
+    notes:'',
+    updated:new Date().toISOString()
+  };
+
+  db.plots.unshift(p);
+  save();
+  renderPlots();
+  renderMapPlotMarkers();
+  toggleMapPlotMode();
+
+  if(confirm('Plot '+clean+' added. Open its details now?')) openPlot(p.id);
+}
+
+
 function setupMap(){
   var viewport=document.getElementById('mapViewport');
   var img=document.getElementById('masterMap');
@@ -882,6 +993,13 @@ function setupMap(){
   var zout=document.getElementById('zoomOutBtn');
   var reset=document.getElementById('mapResetBtn');
   var minBtn=document.getElementById('mapMinBtn');
+  var addPlotBtn=document.getElementById('addPlotOnMapBtn');
+
+  if(addPlotBtn) addPlotBtn.addEventListener('click',function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    toggleMapPlotMode();
+  });
 
   if(minBtn) minBtn.addEventListener('click',function(e){
     e.preventDefault();
@@ -978,6 +1096,13 @@ function setupMap(){
 
   viewport.addEventListener('pointerup',endPointer);
   viewport.addEventListener('pointercancel',endPointer);
+
+
+  viewport.addEventListener('click',function(e){
+    if(!mapPlotMode)return;
+    if(e.target.closest && e.target.closest('.plot-marker'))return;
+    registerPlotAtMapPoint(e.clientX,e.clientY);
+  });
 
   viewport.addEventListener('wheel',function(e){
     e.preventDefault();
