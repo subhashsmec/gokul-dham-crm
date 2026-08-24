@@ -238,6 +238,43 @@ table{width:100%;border-collapse:collapse}
 .status-actions{display:flex;gap:5px;flex-wrap:wrap;margin-top:9px}
 .status-actions button{font-size:11px;padding:6px 8px}
 .deal-box{margin-top:12px;border:1px solid var(--line);border-radius:12px;padding:12px;background:#fbfcfd}
+
+
+
+.dealer-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:12px 0}
+.dealer-card{border:1px solid var(--line);border-radius:12px;padding:14px;background:#fff}
+.dealer-card .metric{font-size:22px}
+.dealer-box{margin-top:10px;border:1px solid var(--line);border-radius:12px;padding:12px;background:#fbfcfd}
+.dealer-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:8px}
+.dealer-item{border:1px solid var(--line);border-radius:9px;padding:9px;background:#fff}
+.dealer-label{font-size:10px;color:var(--muted);text-transform:uppercase;font-weight:800}
+.dealer-value{font-weight:800;margin-top:3px}
+.commission-progress{height:8px;background:#eef2f6;border-radius:99px;overflow:hidden;margin-top:5px}
+.commission-progress>span{display:block;height:100%;background:var(--brand);border-radius:99px}
+@media(max-width:900px){.dealer-grid,.dealer-summary{grid-template-columns:1fr 1fr}}
+@media(max-width:500px){.dealer-grid,.dealer-summary{grid-template-columns:1fr}}
+.schedule-box{margin-top:10px;border:1px solid var(--line);border-radius:12px;padding:12px;background:#fbfcfd}
+.schedule-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.schedule-item{border:1px solid var(--line);border-radius:9px;padding:9px;background:#fff}
+.schedule-label{font-size:10px;color:var(--muted);text-transform:uppercase;font-weight:800}
+.schedule-value{font-weight:800;margin-top:3px}
+.receipt{font-family:Arial,sans-serif;max-width:700px;margin:auto;border:1px solid #ddd;padding:24px;background:#fff}
+.receipt h2{text-align:center;margin:0 0 4px}
+.receipt .receipt-title{text-align:center;color:#666;margin-bottom:18px}
+.receipt-row{display:flex;justify-content:space-between;gap:20px;padding:7px 0;border-bottom:1px dashed #ddd}
+.receipt-total{font-size:20px;font-weight:800;margin-top:14px;text-align:right}
+.receipt-print{margin-top:15px;text-align:center}
+@media(max-width:700px){.schedule-grid{grid-template-columns:1fr}}
+.collection-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:12px 0}
+.collection-card{border:1px solid var(--line);border-radius:12px;padding:14px;background:#fff}
+.collection-card .metric{font-size:22px}
+.collection-table{margin-top:12px}
+.collection-filter{display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px;margin-top:10px}
+.collection-progress{height:9px;background:#eef2f6;border-radius:99px;overflow:hidden;margin-top:6px}
+.collection-progress>span{display:block;height:100%;background:var(--brand);border-radius:99px}
+.collection-status{font-weight:800}
+@media(max-width:800px){.collection-grid{grid-template-columns:1fr 1fr}.collection-filter{grid-template-columns:1fr}}
+@media(max-width:500px){.collection-grid{grid-template-columns:1fr}}
 .payment-summary{margin-top:10px;border:1px solid var(--line);border-radius:12px;padding:12px;background:#f8fafb}
 .payment-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
 .payment-item{border:1px solid var(--line);border-radius:9px;padding:9px;background:#fff}
@@ -265,7 +302,7 @@ table{width:100%;border-collapse:collapse}
 <body>
 <header>
   <h1>Gokul Dham CRM</h1>
-  <small>Sector-13, Hansi · Free offline-first · Step 12 Payment & Sold Control</small>
+  <small>Sector-13, Hansi · Free offline-first · Step 13 Collection Dashboard</small>
 </header>
 
 <main>
@@ -280,9 +317,59 @@ table{width:100%;border-collapse:collapse}
   </div>
   <div class="card" style="margin-top:12px"><h3>Follow-up Center</h3><div id="todayFollowups" class="list"></div></div>
   <div class="card" style="margin-top:12px"><h3>Lead Pipeline</h3><div id="pipeline" class="tablewrap"></div></div>
+
 </section>
 
-<section id="leads" class="view">
+<section id="collections" class="view">
+  <div class="row">
+    <h2>💰 Collection Dashboard</h2>
+    <button type="button" onclick="refreshCollectionDashboard()">↻ Refresh</button>
+  </div>
+
+  <div class="collection-grid">
+    <div class="collection-card">
+      <div class="muted">Total Deal Value</div>
+      <div id="collectionDealTotal" class="metric">₹0</div>
+    </div>
+    <div class="collection-card">
+      <div class="muted">Total Received</div>
+      <div id="collectionPaidTotal" class="metric">₹0</div>
+    </div>
+    <div class="collection-card">
+      <div class="muted">Outstanding</div>
+      <div id="collectionBalanceTotal" class="metric">₹0</div>
+    </div>
+    <div class="collection-card">
+      <div class="muted">Active Payment Deals</div>
+      <div id="collectionActiveCount" class="metric">0</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="row">
+      <h3 style="margin:0">Pending Collections</h3>
+      <span id="collectionPendingCount" class="link-count">0</span>
+    </div>
+    <div class="collection-filter">
+      <input id="collectionSearch" placeholder="Search customer / mobile / plot..." oninput="renderCollectionDashboard()">
+      <select id="collectionStatusFilter" onchange="renderCollectionDashboard()">
+        <option value="">All payment status</option>
+        <option>Token Pending</option>
+        <option>Token Paid</option>
+        <option>Part Payment</option>
+        <option>Fully Paid</option>
+      </select>
+      <select id="collectionSort" onchange="renderCollectionDashboard()">
+        <option value="balance">Highest Balance</option>
+        <option value="date">Booking Date</option>
+        <option value="name">Customer Name</option>
+      </select>
+    </div>
+    <div id="collectionList" class="collection-table tablewrap"></div>
+  </div>
+</section>
+
+<section id="leads class="view">
   <div class="row"><h2>Leads</h2><button onclick="openLead()">+ Add Lead</button></div>
   <div class="filters">
     <input id="search" placeholder="Search name/mobile/category/location..." oninput="renderLeads()">
@@ -476,7 +563,7 @@ table{width:100%;border-collapse:collapse}
   <button onclick="show('leads')">Leads</button>
   <button onclick="show('map')">Map</button>
   <button onclick="show('plots')">Plots</button>
-  <button onclick="show('reports')">Reports</button>
+  <button onclick="show('collections')">Collections</button><button onclick="show('dealers')">Dealers</button><button onclick="showMainDashboard()">Dashboard</button><button onclick="showPlotLeadHistoryPanel()">Lead History</button><button onclick="show('reports')">Reports</button><button onclick="showFinanceReports()">Finance</button><button onclick="showProfitDashboard()">Profit</button>
 </nav>
 
 <dialog id="leadActivityDlg" class="plotdetail-dialog">
@@ -519,6 +606,96 @@ table{width:100%;border-collapse:collapse}
   </div>
 </dialog>
 
+
+
+
+<dialog id="dealerDlg" class="dialog">
+<form method="dialog" class="dlgbody" onsubmit="saveDealerPayment(event)">
+  <div class="dlghead">
+    <div><h2 id="dealerDlgTitle">Dealer & Commission</h2><div id="dealerDlgMeta" class="muted"></div></div>
+    <button type="button" class="secondary" onclick="dealerDlg.close()">✕</button>
+  </div>
+  <input type="hidden" id="dealerLeadId">
+  <div class="formgrid">
+    <div class="field"><label>Lead Source</label>
+      <select id="leadSource">
+        <option>Direct</option><option>Facebook</option><option>WhatsApp</option><option>Website</option><option>Referral</option><option>Dealer</option><option>Other</option>
+      </select>
+    </div>
+    <div class="field"><label>Dealer Name</label><input id="dealerName" placeholder="Dealer / broker name"></div>
+    <div class="field"><label>Dealer Mobile</label><input id="dealerMobile" placeholder="Mobile"></div>
+    <div class="field"><label>Commission Type</label>
+      <select id="commissionType" onchange="calcCommissionForm()"><option value="percent">Percentage (%)</option><option value="fixed">Fixed Amount (₹)</option></select>
+    </div>
+    <div class="field"><label>Commission Rate / Amount</label><input id="commissionRate" type="number" min="0" step="0.01" oninput="calcCommissionForm()"></div>
+    <div class="field"><label>Commission Basis</label>
+      <select id="commissionBasis" onchange="calcCommissionForm()"><option value="deal">Deal Price</option><option value="received">Received Payment</option></select>
+    </div>
+    <div class="field"><label>Total Commission</label><input id="commissionTotal" type="number" readonly></div>
+    <div class="field"><label>Commission Already Paid</label><input id="commissionPaid" type="number" min="0" step="1"></div>
+    <div class="field" style="grid-column:1/-1"><label>Commission Note</label><textarea id="commissionNote" placeholder="Agreement / payment details..."></textarea></div>
+  </div>
+  <div id="commissionCalcBox" class="dealer-box"></div>
+  <div class="row" style="margin-top:14px">
+    <button type="submit">Save Dealer Details</button>
+    <button type="button" class="secondary" onclick="dealerDlg.close()">Cancel</button>
+  </div>
+</form>
+</dialog>
+
+<dialog id="dealerPayDlg" class="dialog">
+<form method="dialog" class="dlgbody" onsubmit="saveDealerPaymentEntry(event)">
+  <div class="dlghead">
+    <div><h2>Pay Dealer Commission</h2><div id="dealerPayMeta" class="muted"></div></div>
+    <button type="button" class="secondary" onclick="dealerPayDlg.close()">✕</button>
+  </div>
+  <input type="hidden" id="dealerPayLeadId">
+  <div class="formgrid">
+    <div class="field"><label>Payment Amount (₹)</label><input id="dealerPayAmount" type="number" min="1" step="1" required></div>
+    <div class="field"><label>Payment Date</label><input id="dealerPayDate" type="date" required></div>
+    <div class="field"><label>Payment Mode</label>
+      <select id="dealerPayMode"><option>Cash</option><option>UPI</option><option>Bank Transfer</option><option>Cheque</option><option>Other</option></select>
+    </div>
+    <div class="field"><label>Reference / Voucher No.</label><input id="dealerPayRef"></div>
+    <div class="field" style="grid-column:1/-1"><label>Note</label><textarea id="dealerPayNote"></textarea></div>
+  </div>
+  <div id="dealerPaySummary" class="dealer-box"></div>
+  <div class="row" style="margin-top:14px">
+    <button type="submit">Save Commission Payment</button>
+    <button type="button" class="secondary" onclick="dealerPayDlg.close()">Cancel</button>
+  </div>
+</form>
+</dialog>
+
+<dialog id="scheduleDlg" class="dialog">
+<form method="dialog" class="dlgbody" onsubmit="savePaymentSchedule(event)">
+  <div class="dlghead">
+    <div><h2>Payment Schedule</h2><div id="scheduleLeadMeta" class="muted"></div></div>
+    <button type="button" class="secondary" onclick="scheduleDlg.close()">✕</button>
+  </div>
+  <input type="hidden" id="scheduleLeadId">
+  <div class="formgrid">
+    <div class="field"><label>Next Payment Date</label><input id="scheduleDate" type="date" required></div>
+    <div class="field"><label>Next Payment Amount (₹)</label><input id="scheduleAmount" type="number" min="0" step="1"></div>
+    <div class="field"><label>Reminder Status</label>
+      <select id="scheduleStatus"><option>Pending</option><option>Called</option><option>Promised</option><option>Received</option><option>Cancelled</option></select>
+    </div>
+    <div class="field" style="grid-column:1/-1"><label>Schedule Note</label><textarea id="scheduleNote" placeholder="Installment / promise / reminder details..."></textarea></div>
+  </div>
+  <div class="row" style="margin-top:14px">
+    <button type="submit">Save Schedule</button>
+    <button type="button" class="secondary" onclick="scheduleDlg.close()">Cancel</button>
+  </div>
+</form>
+</dialog>
+
+<dialog id="receiptDlg" class="dialog">
+  <div class="dlgbody">
+    <div class="row"><h2>Payment Receipt</h2><button type="button" class="secondary" onclick="receiptDlg.close()">✕</button></div>
+    <div id="receiptContent"></div>
+    <div class="receipt-print"><button type="button" onclick="printReceipt()">🖨️ Print Receipt</button></div>
+  </div>
+</dialog>
 
 <dialog id="paymentDlg" class="dialog">
 <form method="dialog" class="dlgbody" onsubmit="savePayment(event)">
@@ -665,6 +842,21 @@ db.leads.forEach(l=>{
   if(l.dealPlotNumbers==null)l.dealPlotNumbers='';
   if(l.paymentStatus==null)l.paymentStatus='Not Started';
   if(l.dealNotes==null)l.dealNotes='';
+  if(l.nextPaymentDate==null)l.nextPaymentDate='';
+  if(l.nextPaymentAmount==null)l.nextPaymentAmount=0;
+  if(l.nextPaymentStatus==null)l.nextPaymentStatus='Pending';
+  if(l.nextPaymentNote==null)l.nextPaymentNote='';
+  if(l.leadSource==null)l.leadSource=l.source||'Direct';
+  if(l.dealerName==null)l.dealerName='';
+  if(l.dealerMobile==null)l.dealerMobile='';
+  if(l.commissionType==null)l.commissionType='percent';
+  if(l.commissionRate==null)l.commissionRate=0;
+  if(l.commissionBasis==null)l.commissionBasis='deal';
+  if(l.commissionTotal==null)l.commissionTotal=0;
+  if(l.commissionPaid==null)l.commissionPaid=0;
+  if(!Array.isArray(l.commissionHistory))l.commissionHistory=[];
+  if(l.commissionNote==null)l.commissionNote='';
+
   if(l.paidAmount==null)l.paidAmount=0;
   if(!Array.isArray(l.paymentHistory))l.paymentHistory=[];
   // Repair older records that were marked Closed while still not fully paid.
@@ -721,6 +913,8 @@ function show(id){
   if(id==='dashboard')renderDashboard();
   if(id==='plots')renderPlots();
   if(id==='reports')renderReports();
+  if(id==='collections')renderCollectionDashboard();
+  if(id==='dealers')renderDealerDashboard();
   if(id==='map')setTimeout(()=>mapFitIfNeeded(),50);
   window.scrollTo(0,0);
 }
@@ -1053,6 +1247,34 @@ function leadHTML(l){
     ${l.status==='Closed'?`<div class="muted" style="margin-top:8px"><b>✅ Closed:</b> Plot is marked Sold.</div>`:''}
     ${l.followup?`<div class="muted" style="margin-top:7px"><b>Next Follow-up:</b> ${esc(l.followup)}</div>`:''}
     ${linkedPlots.length?`<div class="muted" style="margin-top:7px"><b>Linked Plots:</b> ${linkedPlots.map(x=>esc(x.number)).join(', ')}</div>`:''}
+    ${(l.dealerName||l.leadSource&&l.leadSource!=='Direct')?`<div class="dealer-box">
+      <div class="row"><b>🤝 Source / Dealer</b><span class="badge">${esc(l.leadSource||'Direct')}</span></div>
+      <div class="dealer-summary">
+        <div class="dealer-item"><div class="dealer-label">Dealer</div><div class="dealer-value">${esc(l.dealerName||'—')}</div></div>
+        <div class="dealer-item"><div class="dealer-label">Commission</div><div class="dealer-value">${money(l.commissionTotal||0)}</div></div>
+        <div class="dealer-item"><div class="dealer-label">Paid</div><div class="dealer-value">${money(l.commissionPaid||0)}</div></div>
+        <div class="dealer-item"><div class="dealer-label">Pending</div><div class="dealer-value">${money(Math.max(0,Number(l.commissionTotal||0)-Number(l.commissionPaid||0)))}</div></div>
+      </div>
+      ${l.commissionTotal?`<div style="margin-top:8px">${Math.min(100,Math.round(Number(l.commissionPaid||0)/Number(l.commissionTotal)*100))}% paid<div class="commission-progress"><span style="width:${Math.min(100,Math.round(Number(l.commissionPaid||0)/Number(l.commissionTotal)*100))}%"></span></div></div>`:''}
+      <div class="payment-actions">
+        <button type="button" onclick="openDealer('${l.id}')">🤝 Edit Dealer</button>
+        ${Number(l.commissionTotal||0)>Number(l.commissionPaid||0)?`<button type="button" onclick="openDealerPayment('${l.id}')">💸 Pay Commission</button>`:''}
+        ${Array.isArray(l.commissionHistory)&&l.commissionHistory.length?`<button type="button" class="secondary" onclick="showDealerHistory('${l.id}')">📒 Commission History</button>`:''}
+      </div>
+    </div>`:''}
+    ${l.nextPaymentDate?`<div class="schedule-box">
+      <div class="row"><b>📅 Next Payment</b><span class="badge">${esc(l.nextPaymentStatus||'Pending')}</span></div>
+      <div class="schedule-grid" style="margin-top:8px">
+        <div class="schedule-item"><div class="schedule-label">Date</div><div class="schedule-value">${esc(l.nextPaymentDate)}</div></div>
+        <div class="schedule-item"><div class="schedule-label">Amount</div><div class="schedule-value">${l.nextPaymentAmount?money(l.nextPaymentAmount):'Not set'}</div></div>
+        <div class="schedule-item"><div class="schedule-label">Balance</div><div class="schedule-value">${money(paymentTotals(l).balance)}</div></div>
+      </div>
+      ${l.nextPaymentNote?`<div class="muted" style="margin-top:7px">${esc(l.nextPaymentNote)}</div>`:''}
+      <div class="payment-actions">
+        <button type="button" onclick="openPaymentSchedule('${l.id}')">📅 Edit Schedule</button>
+        <button type="button" class="secondary" onclick="showPaymentSchedule('${l.id}')">🔔 Reminder</button>
+      </div>
+    </div>`:''}
     ${Array.isArray(l.followupHistory)&&l.followupHistory.length?`<div class="history"><b>Follow-up History</b>${l.followupHistory.slice(0,3).map(h=>`<div class="history-item">${esc(h.action)} · ${esc(h.date||'')} ${h.note?'· '+esc(h.note):''}</div>`).join('')}</div>`:''}
     ${Array.isArray(l.activities)&&l.activities.length?`<div class="history"><b>Recent Activity</b>${l.activities.slice(0,3).map(a=>`<div class="history-item">${esc(a.action)} · ${esc(activityDate(a.at))}${a.note?' · '+esc(a.note):''}</div>`).join('')}</div>`:''}
     <div class="actions">
@@ -1060,6 +1282,7 @@ function leadHTML(l){
       <button class="call" onclick="callLead('${esc(l.mobile)}')">Call</button>
       <button class="wa" onclick="waLead('${esc(l.mobile)}')">WhatsApp</button>
       <button onclick="showLeadActivity('${l.id}')">📋 Activity</button>
+      <button onclick="openDealer('${l.id}')">🤝 Dealer</button>
       ${l.dealPrice && l.status!=='Closed' && l.status!=='Lost'?`<button onclick="openPayment('${l.id}')">💰 Payment</button>`:''}
       ${l.followup?`<button onclick="completeFollowup('${l.id}')">✓ Done</button><button class="secondary" onclick="rescheduleFollowup('${l.id}')">Reschedule</button>`:''}
       <button class="danger" onclick="delLead('${l.id}')">Delete</button>
@@ -1202,7 +1425,7 @@ function renderReports(){
 }
 
 function exportCSV(){
-  const cols=['name','mobile','category','location','budget','size','source','status','priority','preference','followup','siteVisitDate','siteVisitTime','dealPrice','tokenAmount','bookingDate','dealPlotNumbers','paymentStatus','paidAmount','paymentHistory','dealNotes','notes'];
+  const cols=['name','mobile','category','location','budget','size','source','status','priority','preference','followup','siteVisitDate','siteVisitTime','dealPrice','tokenAmount','bookingDate','dealPlotNumbers','paymentStatus','paidAmount','paymentHistory','nextPaymentDate','nextPaymentAmount','nextPaymentStatus','nextPaymentNote','leadSource','dealerName','dealerMobile','commissionType','commissionRate','commissionBasis','commissionTotal','commissionPaid','commissionHistory','commissionNote','dealNotes','notes'];
   const csv=[
     cols.join(','),
     ...db.leads.map(l=>cols.map(k=>`"${String(l[k]??'').replaceAll('"','""')}"`).join(','))
@@ -1449,6 +1672,8 @@ function savePlot(e){
   renderPlots();
   renderMapPlotMarkers();
   renderReports();
+  if($('collections'))renderCollectionDashboard();
+  if($('dealers'))renderDealerDashboard();
 }
 
 function delPlot(id){
@@ -1655,7 +1880,1034 @@ function rescheduleFollowup(id){
   renderAll();
 }
 
+
+
+function openPaymentSchedule(id){
+  const l=db.leads.find(x=>x.id===id);
+  if(!l)return;
+  $('scheduleLeadId').value=id;
+  $('scheduleLeadMeta').textContent=`${l.name} · ${l.mobile||''} · Plot ${l.dealPlotNumbers||'Not set'} · Balance ${money(paymentTotals(l).balance)}`;
+  $('scheduleDate').value=l.nextPaymentDate||localDateISO();
+  $('scheduleAmount').value=l.nextPaymentAmount||paymentTotals(l).balance||'';
+  $('scheduleStatus').value=l.nextPaymentStatus||'Pending';
+  $('scheduleNote').value=l.nextPaymentNote||'';
+  scheduleDlg.showModal();
+}
+
+function savePaymentSchedule(e){
+  e.preventDefault();
+  const l=db.leads.find(x=>x.id===$('scheduleLeadId').value);
+  if(!l)return;
+  const amount=Number($('scheduleAmount').value||0);
+  const balance=paymentTotals(l).balance;
+  if(amount<0 || (balance>0 && amount>balance)){
+    alert('Schedule amount balance se zyada nahi ho sakta.');
+    return;
+  }
+  l.nextPaymentDate=$('scheduleDate').value||'';
+  l.nextPaymentAmount=amount;
+  l.nextPaymentStatus=$('scheduleStatus').value;
+  l.nextPaymentNote=$('scheduleNote').value.trim();
+  l.updated=new Date().toISOString();
+  save();
+  scheduleDlg.close();
+  renderAll();
+  alert('Next payment schedule saved.');
+}
+
+function showPaymentSchedule(id){
+  const l=db.leads.find(x=>x.id===id);
+  if(!l)return;
+  if(!l.nextPaymentDate){
+    openPaymentSchedule(id);
+    return;
+  }
+  const overdue=dateDiffDays(localDateISO(),l.nextPaymentDate)>0;
+  alert(
+    'Payment Reminder\\n\\n'+
+    'Customer: '+l.name+'\\n'+
+    'Plot: '+(l.dealPlotNumbers||'Not set')+'\\n'+
+    'Date: '+l.nextPaymentDate+'\\n'+
+    'Amount: '+money(l.nextPaymentAmount||0)+'\\n'+
+    'Status: '+(l.nextPaymentStatus||'Pending')+
+    (overdue?'\\n\\n⚠️ Payment date is overdue.':'')
+  );
+}
+
+function receiptNumber(ph,l){
+  return 'RCP-'+String(ph.id||uid()).slice(-8).toUpperCase();
+}
+
+function showPaymentReceipt(id,index=0){
+  const l=db.leads.find(x=>x.id===id);
+  if(!l || !Array.isArray(l.paymentHistory) || !l.paymentHistory.length){
+    alert('No payment received yet.');
+    return;
+  }
+  const ph=l.paymentHistory[index]||l.paymentHistory[0];
+  const t=paymentTotals(l);
+  const plots=db.plots.filter(p=>(p.linkedLeadIds||[]).includes(l.id)||p.leadId===l.id).map(p=>p.number).filter(Boolean);
+  $('receiptContent').innerHTML=`
+    <div class="receipt" id="printableReceipt">
+      <h2>Gokul Dham — Payment Receipt</h2>
+      <div class="receipt-title">Receipt No. ${esc(receiptNumber(ph,l))}</div>
+      <div class="receipt-row"><b>Customer</b><span>${esc(l.name)}</span></div>
+      <div class="receipt-row"><b>Mobile</b><span>${esc(l.mobile||'')}</span></div>
+      <div class="receipt-row"><b>Plot No.</b><span>${esc(plots.join(', ')||l.dealPlotNumbers||'Not set')}</span></div>
+      <div class="receipt-row"><b>Payment Date</b><span>${esc(ph.date||'')}</span></div>
+      <div class="receipt-row"><b>Payment Mode</b><span>${esc(ph.mode||'')}</span></div>
+      ${ph.reference?`<div class="receipt-row"><b>Reference</b><span>${esc(ph.reference)}</span></div>`:''}
+      <div class="receipt-row"><b>Deal Value</b><span>${money(t.total)}</span></div>
+      <div class="receipt-row"><b>Total Paid</b><span>${money(t.paid)}</span></div>
+      <div class="receipt-row"><b>Balance</b><span>${money(t.balance)}</span></div>
+      <div class="receipt-total">Received: ${money(ph.amount)}</div>
+      ${ph.note?`<p><b>Note:</b> ${esc(ph.note)}</p>`:''}
+      <p style="margin-top:28px;color:#777;font-size:12px">Computer generated receipt.</p>
+    </div>`;
+  receiptDlg.showModal();
+}
+
+function printReceipt(){
+  const box=$('printableReceipt');
+  if(!box)return;
+  const w=window.open('','_blank','width=800,height=700');
+  if(!w){alert('Please allow pop-ups to print the receipt.');return;}
+  w.document.write(`<html><head><title>Payment Receipt</title><style>body{font-family:Arial;padding:30px}.receipt{max-width:700px;margin:auto;border:1px solid #ddd;padding:24px}.receipt h2{text-align:center}.receipt-title{text-align:center;color:#666;margin-bottom:18px}.receipt-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px dashed #ddd}.receipt-total{font-size:20px;font-weight:800;margin-top:14px;text-align:right}</style></head><body>${box.outerHTML}<script>window.onload=function(){window.print();}</script></body></html>`);
+  w.document.close();
+}
+
+
+function commissionCalc(l){
+  const basis=l.commissionBasis==='received'?Number(l.paidAmount||0):Number(l.dealPrice||0);
+  let total=0;
+  if(l.commissionType==='fixed') total=Number(l.commissionRate||0);
+  else total=basis*Number(l.commissionRate||0)/100;
+  return {basis,total,paid:Number(l.commissionPaid||0),pending:Math.max(0,total-Number(l.commissionPaid||0))};
+}
+
+function calcCommissionForm(){
+  const type=$('commissionType').value;
+  const rate=Number($('commissionRate').value||0);
+  const basisType=$('commissionBasis').value;
+  const id=$('dealerLeadId').value;
+  const l=db.leads.find(x=>x.id===id);
+  if(!l)return;
+  const basis=basisType==='received'?Number(l.paidAmount||0):Number(l.dealPrice||0);
+  const total=type==='fixed'?rate:basis*rate/100;
+  $('commissionTotal').value=Math.round(total*100)/100;
+  $('commissionCalcBox').innerHTML=`
+    <div class="dealer-summary">
+      <div class="dealer-item"><div class="dealer-label">Basis</div><div class="dealer-value">${money(basis)}</div></div>
+      <div class="dealer-item"><div class="dealer-label">Rate</div><div class="dealer-value">${type==='fixed'?money(rate):rate+'%'}</div></div>
+      <div class="dealer-item"><div class="dealer-label">Commission</div><div class="dealer-value">${money(total)}</div></div>
+      <div class="dealer-item"><div class="dealer-label">Pending</div><div class="dealer-value">${money(Math.max(0,total-Number($('commissionPaid').value||0)))}</div></div>
+    </div>`;
+}
+
+function openDealer(id){
+  const l=db.leads.find(x=>x.id===id);
+  if(!l)return;
+  $('dealerLeadId').value=id;
+  $('dealerDlgTitle').textContent='Dealer & Commission — '+l.name;
+  $('dealerDlgMeta').textContent=`${l.mobile||''} · Plot ${l.dealPlotNumbers||'Not set'} · Deal ${money(l.dealPrice||0)}`;
+  $('leadSource').value=l.leadSource||l.source||'Direct';
+  $('dealerName').value=l.dealerName||'';
+  $('dealerMobile').value=l.dealerMobile||'';
+  $('commissionType').value=l.commissionType||'percent';
+  $('commissionRate').value=l.commissionRate||'';
+  $('commissionBasis').value=l.commissionBasis||'deal';
+  $('commissionPaid').value=l.commissionPaid||0;
+  $('commissionNote').value=l.commissionNote||'';
+  calcCommissionForm();
+  dealerDlg.showModal();
+}
+
+function saveDealerPayment(e){
+  e.preventDefault();
+  const l=db.leads.find(x=>x.id===$('dealerLeadId').value);
+  if(!l)return;
+  const type=$('commissionType').value;
+  const rate=Number($('commissionRate').value||0);
+  const basisType=$('commissionBasis').value;
+  const basis=basisType==='received'?Number(l.paidAmount||0):Number(l.dealPrice||0);
+  const total=type==='fixed'?rate:basis*rate/100;
+  const paid=Number($('commissionPaid').value||0);
+  if(rate<0||paid<0||paid>total){
+    alert('Commission paid total commission se zyada nahi ho sakta.');
+    return;
+  }
+  l.leadSource=$('leadSource').value;
+  l.source=l.leadSource;
+  l.dealerName=$('dealerName').value.trim();
+  l.dealerMobile=$('dealerMobile').value.trim();
+  l.commissionType=type;
+  l.commissionRate=rate;
+  l.commissionBasis=basisType;
+  l.commissionTotal=Math.round(total*100)/100;
+  l.commissionPaid=paid;
+  l.commissionNote=$('commissionNote').value.trim();
+  l.updated=new Date().toISOString();
+  save();
+  dealerDlg.close();
+  renderAll();
+  alert('Dealer details saved. Commission: '+money(l.commissionTotal)+' · Pending: '+money(Math.max(0,l.commissionTotal-l.commissionPaid)));
+}
+
+function openDealerPayment(id){
+  const l=db.leads.find(x=>x.id===id);
+  if(!l)return;
+  const c=commissionCalc(l);
+  if(c.pending<=0){alert('Dealer commission already fully paid.');return;}
+  $('dealerPayLeadId').value=id;
+  $('dealerPayMeta').textContent=`${l.dealerName||'Dealer'} · ${l.name} · Plot ${l.dealPlotNumbers||'Not set'}`;
+  $('dealerPayAmount').value='';
+  $('dealerPayAmount').max=String(c.pending);
+  $('dealerPayDate').value=localDateISO();
+  $('dealerPayMode').value='Cash';
+  $('dealerPayRef').value='';
+  $('dealerPayNote').value='';
+  $('dealerPaySummary').innerHTML=`<div class="dealer-summary">
+    <div class="dealer-item"><div class="dealer-label">Commission</div><div class="dealer-value">${money(c.total)}</div></div>
+    <div class="dealer-item"><div class="dealer-label">Paid</div><div class="dealer-value">${money(c.paid)}</div></div>
+    <div class="dealer-item"><div class="dealer-label">Pending</div><div class="dealer-value">${money(c.pending)}</div></div>
+  </div>`;
+  dealerPayDlg.showModal();
+}
+
+function saveDealerPaymentEntry(e){
+  e.preventDefault();
+  const l=db.leads.find(x=>x.id===$('dealerPayLeadId').value);
+  if(!l)return;
+  const c=commissionCalc(l);
+  const amount=Number($('dealerPayAmount').value||0);
+  if(amount<=0||amount>c.pending){
+    alert('Payment amount pending commission se zyada nahi ho sakta.');
+    return;
+  }
+  l.commissionPaid=Number(l.commissionPaid||0)+amount;
+  if(!Array.isArray(l.commissionHistory))l.commissionHistory=[];
+  l.commissionHistory.unshift({
+    id:uid(), amount,
+    date:$('dealerPayDate').value||localDateISO(),
+    mode:$('dealerPayMode').value,
+    reference:$('dealerPayRef').value.trim(),
+    note:$('dealerPayNote').value.trim(),
+    at:new Date().toISOString()
+  });
+  l.commissionHistory=l.commissionHistory.slice(0,100);
+  if(!Array.isArray(l.activities))l.activities=[];
+  l.activities.unshift({id:uid(),at:new Date().toISOString(),action:'Dealer Commission Paid',
+    note:money(amount)+' · '+(l.dealerName||'Dealer')});
+  l.activities=l.activities.slice(0,100);
+  l.updated=new Date().toISOString();
+  save();
+  dealerPayDlg.close();
+  renderAll();
+  const after=commissionCalc(l);
+  alert('Commission payment saved: '+money(amount)+'\\nPaid: '+money(after.paid)+'\\nPending: '+money(after.pending));
+}
+
+function showDealerHistory(id){
+  const l=db.leads.find(x=>x.id===id);
+  if(!l)return;
+  const h=Array.isArray(l.commissionHistory)?l.commissionHistory:[];
+  if(!h.length){alert('No dealer commission payments yet.');return;}
+  alert('Dealer Commission History — '+(l.dealerName||'Dealer')+'\\n\\n'+h.map((p,i)=>
+    `${i+1}. ${p.date||''} · ${money(p.amount)} · ${p.mode||''}${p.reference?' · Ref: '+p.reference:''}${p.note?' · '+p.note:''}`
+  ).join('\\n'));
+}
+
+
+function dealerPerformanceData(){
+  const groups={};
+  db.leads.forEach(l=>{
+    if(!l.dealerName)return;
+    const name=l.dealerName.trim(); if(!name)return;
+    if(!groups[name])groups[name]={name,mobile:l.dealerMobile||'',plots:0,dealValue:0,commission:0,paid:0,pending:0,bookings:0};
+    const g=groups[name];
+    const count=String(l.dealPlotNumbers||'').split(/[,/&]+/).map(x=>x.trim()).filter(Boolean).length||1;
+    if(l.status==='Closed'){
+      g.plots+=count; g.dealValue+=Number(l.dealPrice||0);
+      const c=commissionCalc(l); g.commission+=c.total; g.paid+=c.paid; g.pending+=c.pending;
+    }else if(l.status==='Booking') g.bookings+=count;
+  });
+  return Object.values(groups).sort((a,b)=>b.plots-a.plots);
+}
+function showDealerDeals(name){
+  const rows=db.leads.filter(l=>l.dealerName&&l.dealerName.trim()===name&&(l.status==='Closed'||l.status==='Booking'));
+  if(!rows.length){alert('No dealer deals found.');return;}
+  alert('Dealer: '+name+'\n\n'+rows.map((l,i)=>{
+    const c=commissionCalc(l);
+    return `${i+1}. ${l.status==='Closed'?'SOLD':'BOOKING'} · Plot ${l.dealPlotNumbers||'—'} · ${l.name} · Deal ${money(l.dealPrice||0)} · Commission ${money(c.total)} · Pending ${money(c.pending)}`;
+  }).join('\n'));
+}
+function renderDealerPerformance(){
+  const rows=dealerPerformanceData();
+  let el=$('dealerPerformanceList');
+  if(!el){
+    const dash=document.querySelector('#dealers');
+    if(!dash)return;
+    el=document.createElement('div');
+    el.id='dealerPerformanceList';
+    el.className='tablewrap';
+    const card=document.createElement('div');
+    card.className='card';
+    card.innerHTML='<div class="row"><h3 style="margin:0">📊 Dealer Performance</h3></div>';
+    card.appendChild(el);
+    dash.insertBefore(card,dash.children[1]||null);
+  }
+  if(!rows.length){el.innerHTML='<div class="empty">No dealer performance data yet.</div>';return;}
+  el.innerHTML=`<table><thead><tr><th>Dealer</th><th>Plots Sold</th><th>Total Deal Value</th><th>Total Commission</th><th>Paid</th><th>Balance</th><th>Bookings</th><th>Action</th></tr></thead><tbody>
+  ${rows.map(g=>`<tr><td><b>${esc(g.name)}</b><div class="muted">${esc(g.mobile||'')}</div></td><td><b>${g.plots}</b></td><td>${money(g.dealValue)}</td><td>${money(g.commission)}</td><td>${money(g.paid)}</td><td><b>${money(g.pending)}</b></td><td>${g.bookings}</td><td><button onclick="showDealerDeals(${JSON.stringify(g.name)})">View Deals</button></td></tr>`).join('')}
+  </tbody></table>`;
+}
+
+
+function ensureDealerStatementPanel(){
+  const dash=document.querySelector('#dealers')||document.querySelector('[id*="dealer"]');
+  if(!dash)return;
+  let panel=$('dealerStatementPanel');
+  if(!panel){
+    panel=document.createElement('div'); panel.id='dealerStatementPanel'; panel.className='card dealer-statement';
+    panel.innerHTML='<div class="row"><h3 style="margin:0">🧾 Dealer Statement</h3><button type="button" onclick="openDealerStatement()">Print / View</button></div><div class="filters" style="margin-top:10px"><select id="statementDealerSelect" onchange="renderDealerStatementPreview()"><option value="">Select Dealer</option></select><select id="statementStatusFilter" onchange="renderDealerStatementPreview()"><option value="">All Deals</option><option value="Closed">Sold Only</option><option value="Booking">Booking Only</option></select></div><div id="dealerStatementPreview" style="margin-top:12px"></div>';
+    dash.insertBefore(panel,dash.firstElementChild);
+  }
+  populateDealerStatementSelect();
+  renderDealerStatementPreview();
+}
+
+function dealerStatementRows(){
+  const dealer=$('statementDealerSelect')?.value||'';
+  const status=$('statementStatusFilter')?.value||'';
+  if(!dealer)return [];
+  return db.leads.filter(l=>l.dealerName&&l.dealerName.trim()===dealer&&(!status||l.status===status));
+}
+function populateDealerStatementSelect(){
+  const el=$('statementDealerSelect'); if(!el)return;
+  const current=el.value;
+  const names=[...new Set(db.leads.map(l=>(l.dealerName||'').trim()).filter(Boolean))].sort();
+  el.innerHTML='<option value="">Select Dealer</option>'+names.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');
+  if(names.includes(current))el.value=current;
+}
+function renderDealerStatementPreview(){
+  const el=$('dealerStatementPreview'); if(!el)return;
+  const dealer=$('statementDealerSelect')?.value||'';
+  if(!dealer){el.innerHTML='<div class="empty">Select a dealer to view statement.</div>';return;}
+  const rows=dealerStatementRows(), sold=rows.filter(l=>l.status==='Closed');
+  const deal=sold.reduce((s,l)=>s+Number(l.dealPrice||0),0);
+  const com=sold.reduce((s,l)=>s+commissionCalc(l).total,0);
+  const paid=sold.reduce((s,l)=>s+commissionCalc(l).paid,0);
+  const pending=Math.max(0,com-paid);
+  el.innerHTML=`<div class="dealer-summary">
+  <div class="dealer-item"><div class="dealer-label">Plots Sold</div><div class="dealer-value">${sold.reduce((s,l)=>s+(String(l.dealPlotNumbers||'').split(/[,/&]+/).filter(Boolean).length||1),0)}</div></div>
+  <div class="dealer-item"><div class="dealer-label">Deal Value</div><div class="dealer-value">${money(deal)}</div></div>
+  <div class="dealer-item"><div class="dealer-label">Commission Paid</div><div class="dealer-value">${money(paid)}</div></div>
+  <div class="dealer-item"><div class="dealer-label">Commission Pending</div><div class="dealer-value">${money(pending)}</div></div></div>
+  <div class="tablewrap" style="margin-top:10px"><table><thead><tr><th>Status</th><th>Customer</th><th>Plot</th><th>Deal</th><th>Commission</th><th>Paid</th><th>Pending</th></tr></thead><tbody>
+  ${rows.map(l=>{const c=commissionCalc(l);return `<tr><td>${esc(l.status||'')}</td><td><b>${esc(l.name)}</b><div class="muted">${esc(l.mobile||'')}</div></td><td>${esc(l.dealPlotNumbers||'—')}</td><td>${money(l.dealPrice||0)}</td><td>${money(c.total)}</td><td>${money(c.paid)}</td><td><b>${money(c.pending)}</b></td></tr>`}).join('')}</tbody></table></div>`;
+}
+function openDealerStatement(){
+  const dealer=$('statementDealerSelect')?.value||'';
+  if(!dealer){alert('Please select a dealer first.');return;}
+  const rows=dealerStatementRows(), sold=rows.filter(l=>l.status==='Closed');
+  const deal=sold.reduce((s,l)=>s+Number(l.dealPrice||0),0);
+  const com=sold.reduce((s,l)=>s+commissionCalc(l).total,0);
+  const paid=sold.reduce((s,l)=>s+commissionCalc(l).paid,0);
+  const pending=Math.max(0,com-paid);
+  const plots=sold.reduce((s,l)=>s+(String(l.dealPlotNumbers||'').split(/[,/&]+/).filter(Boolean).length||1),0);
+  const w=window.open('','_blank','width=1100,height=800');
+  if(!w){alert('Please allow pop-ups to print the statement.');return;}
+  w.document.write(`<html><head><title>Dealer Statement</title><style>body{font-family:Arial;padding:28px}h1{text-align:center}.summary{display:flex;gap:10px}.box{border:1px solid #ddd;padding:12px;flex:1}table{width:100%;border-collapse:collapse;margin-top:20px}th,td{border:1px solid #ddd;padding:8px;font-size:12px;text-align:left}</style></head><body><h1>Gokul Dham — Dealer Statement</h1><p style="text-align:center">Dealer: ${esc(dealer)} · Date: ${localDateISO()}</p><div class="summary"><div class="box"><b>Plots Sold</b><br>${plots}</div><div class="box"><b>Deal Value</b><br>${money(deal)}</div><div class="box"><b>Commission Paid</b><br>${money(paid)}</div><div class="box"><b>Commission Pending</b><br>${money(pending)}</div></div><table><tr><th>Status</th><th>Customer</th><th>Plot</th><th>Deal</th><th>Commission</th><th>Paid</th><th>Pending</th></tr>${rows.map(l=>{const c=commissionCalc(l);return `<tr><td>${esc(l.status||'')}</td><td>${esc(l.name)}</td><td>${esc(l.dealPlotNumbers||'—')}</td><td>${money(l.dealPrice||0)}</td><td>${money(c.total)}</td><td>${money(c.paid)}</td><td>${money(c.pending)}</td></tr>`}).join('')}</table><script>window.onload=function(){window.print()}</script></body></html>`);
+  w.document.close();
+}
+
+function ensureProfitDashboard(){
+  let panel=$('profitDashboardPanel');
+  if(panel)return;
+  const nav=[...document.querySelectorAll('button')].find(b=>(b.textContent||'').includes('Reports'));
+  const reports=document.querySelector('#reports')||document.querySelector('[id*="report"]');
+  const host=reports||document.querySelector('main')||document.body;
+  panel=document.createElement('section');
+  panel.id='profitDashboardPanel';
+  panel.className='view card';
+  panel.style.marginTop='12px';
+  panel.innerHTML=`
+    <div class="row"><h2 style="margin:0">📊 Expense & Profit Dashboard</h2>
+      <button type="button" onclick="renderProfitDashboard()">↻ Refresh</button></div>
+    <div class="collection-grid" style="margin-top:12px">
+      <div class="collection-card"><div class="muted">Total Sales</div><div id="profitSales" class="metric">₹0</div></div>
+      <div class="collection-card"><div class="muted">Total Received</div><div id="profitReceived" class="metric">₹0</div></div>
+      <div class="collection-card"><div class="muted">Other Expenses</div><div id="profitExpenses" class="metric">₹0</div></div>
+      <div class="collection-card"><div class="muted">Dealer Commission</div><div id="profitDealerCommission" class="metric">₹0</div></div>
+    </div>
+    <div class="collection-grid">
+      <div class="collection-card"><div class="muted">Total Expense</div><div id="profitTotalExpense" class="metric">₹0</div></div>
+      <div class="collection-card"><div class="muted">Gross Profit</div><div id="profitGross" class="metric">₹0</div></div>
+      <div class="collection-card"><div class="muted">Outstanding</div><div id="profitOutstanding" class="metric">₹0</div></div>
+      <div class="collection-card"><div class="muted">Sold Plots</div><div id="profitSoldPlots" class="metric">0</div></div>
+    </div>
+    <div class="card" style="margin-top:12px">
+      <div class="row"><h3 style="margin:0">Add Expense</h3></div>
+      <div class="formgrid" style="margin-top:10px">
+        <div class="field"><label>Expense Head</label>
+          <select id="expenseHead"><option>Marketing</option><option>Office</option><option>Travel</option><option>Salary</option><option>Legal</option><option>Development</option><option>Other</option></select>
+        </div>
+        <div class="field"><label>Amount (₹)</label><input id="expenseAmount" type="number" min="1" step="1"></div>
+        <div class="field"><label>Date</label><input id="expenseDate" type="date"></div>
+        <div class="field"><label>Payment Mode</label><select id="expenseMode"><option>Cash</option><option>UPI</option><option>Bank Transfer</option><option>Cheque</option><option>Other</option></select></div>
+        <div class="field" style="grid-column:1/-1"><label>Note</label><textarea id="expenseNote" placeholder="Expense details..."></textarea></div>
+      </div>
+      <button type="button" onclick="addCRMExpense()" style="margin-top:10px">➕ Save Expense</button>
+    </div>
+    <div class="card" style="margin-top:12px">
+      <h3 style="margin-top:0">Expense History</h3>
+      <div id="expenseHistoryList" class="tablewrap"></div>
+    </div>`;
+  host.appendChild(panel);
+}
+
+function ensureExpenseData(){
+  if(!Array.isArray(db.expenses))db.expenses=[];
+}
+
+function addCRMExpense(){
+  ensureExpenseData();
+  const amount=Number($('expenseAmount').value||0);
+  if(amount<=0){alert('Expense amount 0 se zyada hona chahiye.');return;}
+  db.expenses.unshift({
+    id:uid(),
+    head:$('expenseHead').value,
+    amount,
+    date:$('expenseDate').value||localDateISO(),
+    mode:$('expenseMode').value,
+    note:$('expenseNote').value.trim(),
+    at:new Date().toISOString()
+  });
+  db.expenses=db.expenses.slice(0,500);
+  save();
+  $('expenseAmount').value='';
+  $('expenseNote').value='';
+  renderProfitDashboard();
+  alert('Expense saved: '+money(amount));
+}
+
+
+
+
+function ensurePlotLeadHistory(){
+  let panel=$('plotLeadHistoryPanel');
+  if(panel)return;
+  const host=document.querySelector('main')||document.body;
+  panel=document.createElement('section');
+  panel.id='plotLeadHistoryPanel';
+  panel.className='view card';
+  panel.style.marginTop='12px';
+  panel.innerHTML=`
+    <div class="row">
+      <div><h2 style="margin:0">🏠 Plot Lead & Demand History</h2>
+      <div class="muted">Multiple dealers can bring leads for the same plot without overwriting each other.</div></div>
+      <button type="button" onclick="renderPlotLeadHistory()">↻ Refresh</button>
+    </div>
+
+    <div class="formgrid" style="margin-top:12px">
+      <div class="field"><label>Plot Number</label><input id="historyPlotNo" placeholder="e.g. 261"></div>
+      <div class="field"><label>Dealer</label><input id="historyDealer" placeholder="Dealer name"></div>
+      <div class="field"><label>Customer</label><input id="historyCustomer" placeholder="Customer name"></div>
+      <div class="field"><label>Customer Mobile</label><input id="historyCustomerMobile" placeholder="Mobile"></div>
+      <div class="field"><label>Lead Date</label><input id="historyLeadDate" type="date"></div>
+      <div class="field"><label>Demand / Expected Price (₹)</label><input id="historyDemand" type="number" min="0" step="1"></div>
+      <div class="field"><label>Lead Source</label>
+        <select id="historySource"><option>Dealer</option><option>Facebook</option><option>WhatsApp</option><option>Direct</option><option>Website</option><option>Referral</option><option>Other</option></select>
+      </div>
+      <div class="field"><label>Status</label>
+        <select id="historyStatus"><option>New</option><option>Follow-up</option><option>Negotiation</option><option>Lost</option><option>Sold</option></select>
+      </div>
+      <div class="field" style="grid-column:1/-1"><label>Notes / Demand Details</label><textarea id="historyNote" placeholder="Customer demand, negotiation, reason for lost lead, etc."></textarea></div>
+    </div>
+    <button type="button" onclick="addPlotLeadHistory()" style="margin-top:10px">➕ Add Plot Lead</button>
+
+    <div class="filters" style="margin-top:16px">
+      <input id="historySearch" placeholder="Search plot / dealer / customer..." oninput="renderPlotLeadHistory()">
+      <select id="historyFilterStatus" onchange="renderPlotLeadHistory()">
+        <option value="">All Status</option><option>New</option><option>Follow-up</option><option>Negotiation</option><option>Lost</option><option>Sold</option>
+      </select>
+      <input id="historyFilterPlot" placeholder="Filter Plot" oninput="renderPlotLeadHistory()">
+    </div>
+
+    <div id="plotLeadHistorySummary" style="margin-top:12px"></div>
+    <div id="plotLeadHistoryList" class="tablewrap" style="margin-top:10px"></div>`;
+  host.appendChild(panel);
+}
+
+function ensurePlotLeadHistoryData(){
+  if(!Array.isArray(db.plotLeadHistory))db.plotLeadHistory=[];
+}
+
+function addPlotLeadHistory(){
+  ensurePlotLeadHistoryData();
+  const plot=String($('historyPlotNo').value||'').trim();
+  const dealer=String($('historyDealer').value||'').trim();
+  const customer=String($('historyCustomer').value||'').trim();
+  const demand=Number($('historyDemand').value||0);
+
+  if(!plot){alert('Plot number required.');return;}
+  if(!dealer){alert('Dealer name required.');return;}
+  if(!customer){alert('Customer name required.');return;}
+  if(demand<0){alert('Demand amount invalid.');return;}
+
+  const entry={
+    id:uid(),
+    plotNo:plot,
+    dealerName:dealer,
+    customerName:customer,
+    customerMobile:String($('historyCustomerMobile').value||'').trim(),
+    leadDate:$('historyLeadDate').value||localDateISO(),
+    demand,
+    source:$('historySource').value,
+    status:$('historyStatus').value,
+    note:String($('historyNote').value||'').trim(),
+    createdAt:new Date().toISOString()
+  };
+  db.plotLeadHistory.unshift(entry);
+  db.plotLeadHistory=db.plotLeadHistory.slice(0,2000);
+  save();
+
+  $('historyCustomer').value='';
+  $('historyCustomerMobile').value='';
+  $('historyDemand').value='';
+  $('historyNote').value='';
+  $('historyStatus').value='New';
+
+  renderPlotLeadHistory();
+  alert('Plot lead history saved.');
+}
+
+function updatePlotLeadStatus(id,status){
+  ensurePlotLeadHistoryData();
+  const x=db.plotLeadHistory.find(v=>v.id===id);
+  if(!x)return;
+  x.status=status;
+  x.updatedAt=new Date().toISOString();
+  save();
+  renderPlotLeadHistory();
+}
+
+function deletePlotLeadHistory(id){
+  if(!confirm('Delete this plot lead history entry?'))return;
+  ensurePlotLeadHistoryData();
+  db.plotLeadHistory=db.plotLeadHistory.filter(v=>v.id!==id);
+  save();
+  renderPlotLeadHistory();
+}
+
+function renderPlotLeadHistory(){
+  ensurePlotLeadHistory();
+  ensurePlotLeadHistoryData();
+
+  const q=String($('historySearch')?.value||'').toLowerCase().trim();
+  const status=$('historyFilterStatus')?.value||'';
+  const plotFilter=String($('historyFilterPlot')?.value||'').trim().toLowerCase();
+
+  const rows=db.plotLeadHistory.filter(x=>{
+    const text=[x.plotNo,x.dealerName,x.customerName,x.customerMobile,x.source,x.note].join(' ').toLowerCase();
+    return (!q||text.includes(q)) &&
+      (!status||x.status===status) &&
+      (!plotFilter||String(x.plotNo).toLowerCase().includes(plotFilter));
+  }).sort((a,b)=>String(b.leadDate||'').localeCompare(String(a.leadDate||'')));
+
+  const uniquePlots=new Set(db.plotLeadHistory.map(x=>x.plotNo)).size;
+  const uniqueDealers=new Set(db.plotLeadHistory.map(x=>x.dealerName).filter(Boolean)).size;
+  const soldRows=db.plotLeadHistory.filter(x=>x.status==='Sold').length;
+
+  $('plotLeadHistorySummary').innerHTML=`
+    <div class="dealer-summary">
+      <div class="dealer-item"><div class="dealer-label">Total Lead Entries</div><div class="dealer-value">${db.plotLeadHistory.length}</div></div>
+      <div class="dealer-item"><div class="dealer-label">Plots With History</div><div class="dealer-value">${uniquePlots}</div></div>
+      <div class="dealer-item"><div class="dealer-label">Dealers</div><div class="dealer-value">${uniqueDealers}</div></div>
+      <div class="dealer-item"><div class="dealer-label">Sold Lead Entries</div><div class="dealer-value">${soldRows}</div></div>
+    </div>`;
+
+  $('plotLeadHistoryList').innerHTML=rows.length?`<table><thead><tr>
+    <th>Date</th><th>Plot</th><th>Dealer</th><th>Customer</th><th>Demand</th><th>Source</th><th>Status</th><th>Notes</th><th>Action</th>
+  </tr></thead><tbody>
+  ${rows.map(x=>`<tr>
+    <td>${esc(x.leadDate||'')}</td>
+    <td><b>${esc(x.plotNo)}</b></td>
+    <td><b>${esc(x.dealerName)}</b></td>
+    <td>${esc(x.customerName)}<div class="muted">${esc(x.customerMobile||'')}</div></td>
+    <td>${money(x.demand||0)}</td>
+    <td>${esc(x.source||'')}</td>
+    <td>
+      <select onchange="updatePlotLeadStatus('${x.id}',this.value)">
+        ${['New','Follow-up','Negotiation','Lost','Sold'].map(s=>`<option ${x.status===s?'selected':''}>${s}</option>`).join('')}
+      </select>
+    </td>
+    <td>${esc(x.note||'')}</td>
+    <td><button class="danger" onclick="deletePlotLeadHistory('${x.id}')">Delete</button></td>
+  </tr>`).join('')}
+  </tbody></table>`:'<div class="empty">No plot lead history found.</div>';
+}
+
+function showPlotLeadHistory(plotNo){
+  ensurePlotLeadHistory();
+  ensurePlotLeadHistoryData();
+  const plot=String(plotNo||'').trim();
+  if(!plot)return;
+  document.querySelectorAll('.view').forEach(v=>v.style.display='none');
+  const p=$('plotLeadHistoryPanel');
+  if(p)p.style.display='block';
+  $('historyFilterPlot').value=plot;
+  $('historyPlotNo').value=plot;
+  renderPlotLeadHistory();
+}
+
+function ensureMainDashboard(){
+  let panel=$('mainDashboardPanel');
+  if(panel)return;
+  const host=document.querySelector('main')||document.body;
+  panel=document.createElement('section');
+  panel.id='mainDashboardPanel';
+  panel.className='view';
+  panel.innerHTML=`
+    <div class="row">
+      <div>
+        <h2 style="margin:0">🏠 Gokul Dham CRM Dashboard</h2>
+        <div class="muted">Business overview at a glance</div>
+      </div>
+      <button type="button" onclick="renderMainDashboard()">↻ Refresh</button>
+    </div>
+
+    <div class="collection-grid" style="margin-top:12px">
+      <div class="collection-card"><div class="muted">Available Plots</div><div id="dashAvailable" class="metric">0</div></div>
+      <div class="collection-card"><div class="muted">Hold Plots</div><div id="dashHold" class="metric">0</div></div>
+      <div class="collection-card"><div class="muted">Sold Plots</div><div id="dashSold" class="metric">0</div></div>
+      <div class="collection-card"><div class="muted">Total Leads</div><div id="dashLeads" class="metric">0</div></div>
+    </div>
+
+    <div class="collection-grid">
+      <div class="collection-card"><div class="muted">Today's Collection</div><div id="dashTodayCollection" class="metric">₹0</div></div>
+      <div class="collection-card"><div class="muted">Today's Expenses</div><div id="dashTodayExpense" class="metric">₹0</div></div>
+      <div class="collection-card"><div class="muted">Dealer Commission Pending</div><div id="dashDealerPending" class="metric">₹0</div></div>
+      <div class="collection-card"><div class="muted">Customer Outstanding</div><div id="dashOutstanding" class="metric">₹0</div></div>
+    </div>
+
+    <div class="collection-grid">
+      <div class="collection-card"><div class="muted">This Month Sales</div><div id="dashMonthSales" class="metric">₹0</div></div>
+      <div class="collection-card"><div class="muted">This Month Collection</div><div id="dashMonthCollection" class="metric">₹0</div></div>
+      <div class="collection-card"><div class="muted">Overdue Payments</div><div id="dashOverdue" class="metric">0</div></div>
+      <div class="collection-card"><div class="muted">Next Payments</div><div id="dashUpcoming" class="metric">0</div></div>
+    </div>
+
+    <div class="card" style="margin-top:12px">
+      <div class="row"><h3 style="margin:0">⚠️ Payment Follow-ups</h3></div>
+      <div id="dashPaymentAlerts" class="tablewrap"></div>
+    </div>
+
+    <div class="card" style="margin-top:12px">
+      <div class="row"><h3 style="margin:0">📌 Recent Activity</h3></div>
+      <div id="dashRecentActivity" class="tablewrap"></div>
+    </div>`;
+  host.insertBefore(panel, host.firstElementChild || null);
+}
+
+function dashboardDateRange(type){
+  const now=new Date();
+  const today=localDateISO(now);
+  if(type==='today')return {from:today,to:today};
+  return {from:localDateISO(new Date(now.getFullYear(),now.getMonth(),1)),to:today};
+}
+function dashInRange(date,r){
+  const d=String(date||'').slice(0,10);
+  return d>=r.from&&d<=r.to;
+}
+function renderMainDashboard(){
+  ensureMainDashboard();
+  const plots=Array.isArray(db.plots)?db.plots:[];
+  const leads=Array.isArray(db.leads)?db.leads:[];
+  const available=plots.filter(p=>p.status==='Available').length;
+  const hold=plots.filter(p=>p.status==='Hold').length;
+  const sold=plots.filter(p=>p.status==='Sold').length;
+  $('dashAvailable').textContent=available;
+  $('dashHold').textContent=hold;
+  $('dashSold').textContent=sold;
+  $('dashLeads').textContent=leads.length;
+
+  const today=dashboardDateRange('today');
+  const month=dashboardDateRange('month');
+  let todayCollection=0,monthCollection=0;
+  leads.forEach(l=>(Array.isArray(l.paymentHistory)?l.paymentHistory:[]).forEach(p=>{
+    const a=Number(p.amount||0);
+    if(dashInRange(p.date,today))todayCollection+=a;
+    if(dashInRange(p.date,month))monthCollection+=a;
+  }));
+  const expenses=Array.isArray(db.expenses)?db.expenses:[];
+  const todayExpense=expenses.filter(e=>dashInRange(e.date,today)).reduce((s,e)=>s+Number(e.amount||0),0);
+  const monthSales=leads.filter(l=>l.status==='Closed').reduce((s,l)=>{
+    const d=l.bookingDate||String(l.updated||'').slice(0,10);
+    return dashInRange(d,month)?s+Number(l.dealPrice||0):s;
+  },0);
+  const dealerPending=leads.filter(l=>l.dealerName).reduce((s,l)=>s+commissionCalc(l).pending,0);
+  const outstanding=leads.filter(l=>Number(l.dealPrice||0)>0).reduce((s,l)=>s+paymentTotals(l).balance,0);
+
+  $('dashTodayCollection').textContent=money(todayCollection);
+  $('dashTodayExpense').textContent=money(todayExpense);
+  $('dashDealerPending').textContent=money(dealerPending);
+  $('dashOutstanding').textContent=money(outstanding);
+  $('dashMonthSales').textContent=money(monthSales);
+  $('dashMonthCollection').textContent=money(monthCollection);
+
+  const overdue=leads.filter(l=>l.nextPaymentDate && paymentTotals(l).balance>0 && l.nextPaymentDate<localDateISO());
+  const upcoming=leads.filter(l=>l.nextPaymentDate && paymentTotals(l).balance>0 && l.nextPaymentDate>=localDateISO());
+  $('dashOverdue').textContent=overdue.length;
+  $('dashUpcoming').textContent=upcoming.length;
+
+  const alerts=overdue.concat(upcoming).sort((a,b)=>String(a.nextPaymentDate).localeCompare(String(b.nextPaymentDate))).slice(0,12);
+  $('dashPaymentAlerts').innerHTML=alerts.length?`<table><thead><tr><th>Status</th><th>Customer</th><th>Plot</th><th>Date</th><th>Amount</th><th>Balance</th><th>Action</th></tr></thead><tbody>
+  ${alerts.map(l=>`<tr><td>${l.nextPaymentDate<localDateISO()?'⚠️ Overdue':'📅 Upcoming'}</td><td><b>${esc(l.name)}</b><div class="muted">${esc(l.mobile||'')}</div></td><td>${esc(l.dealPlotNumbers||'—')}</td><td>${esc(l.nextPaymentDate)}</td><td>${money(l.nextPaymentAmount||0)}</td><td>${money(paymentTotals(l).balance)}</td><td><button onclick="openPayment('${l.id}')">Collect</button><button class="secondary" onclick="openLead('${l.id}')">View</button></td></tr>`).join('')}
+  </tbody></table>`:'<div class="empty">No scheduled payment follow-ups.</div>';
+
+  const activity=[];
+  leads.forEach(l=>(Array.isArray(l.activities)?l.activities:[]).slice(0,5).forEach(a=>{
+    activity.push({at:a.at||'',customer:l.name,action:a.action||'',note:a.note||''});
+  }));
+  activity.sort((a,b)=>String(b.at).localeCompare(String(a.at)));
+  $('dashRecentActivity').innerHTML=activity.length?`<table><thead><tr><th>Date</th><th>Customer</th><th>Activity</th><th>Details</th></tr></thead><tbody>
+  ${activity.slice(0,15).map(a=>`<tr><td>${esc(a.at?new Date(a.at).toLocaleString():'')}</td><td>${esc(a.customer)}</td><td><b>${esc(a.action)}</b></td><td>${esc(a.note)}</td></tr>`).join('')}
+  </tbody></table>`:'<div class="empty">No recent activity.</div>';
+}
+
+function ensureFinanceReports(){
+  let panel=$('financeReportsPanel');
+  if(panel)return;
+  const host=$('profitDashboardPanel') || document.querySelector('main') || document.body;
+  panel=document.createElement('section');
+  panel.id='financeReportsPanel';
+  panel.className='card';
+  panel.style.marginTop='12px';
+  panel.innerHTML=`
+    <div class="row">
+      <h2 style="margin:0">📊 Finance Reports</h2>
+      <button type="button" onclick="renderFinanceReports()">↻ Refresh</button>
+    </div>
+    <div class="filters" style="margin-top:10px">
+      <select id="financePeriod" onchange="renderFinanceReports()">
+        <option value="today">Today</option>
+        <option value="week">This Week</option>
+        <option value="month">This Month</option>
+        <option value="all">All Time</option>
+        <option value="custom">Custom Range</option>
+      </select>
+      <input id="financeFrom" type="date" onchange="renderFinanceReports()">
+      <input id="financeTo" type="date" onchange="renderFinanceReports()">
+    </div>
+    <div class="collection-grid" style="margin-top:12px">
+      <div class="collection-card"><div class="muted">Total Received</div><div id="financeReceived" class="metric">₹0</div></div>
+      <div class="collection-card"><div class="muted">Cash</div><div id="financeCash" class="metric">₹0</div></div>
+      <div class="collection-card"><div class="muted">UPI</div><div id="financeUPI" class="metric">₹0</div></div>
+      <div class="collection-card"><div class="muted">Bank</div><div id="financeBank" class="metric">₹0</div></div>
+    </div>
+    <div class="collection-grid">
+      <div class="collection-card"><div class="muted">Other Receipts</div><div id="financeOther" class="metric">₹0</div></div>
+      <div class="collection-card"><div class="muted">Other Expenses</div><div id="financeExpenses" class="metric">₹0</div></div>
+      <div class="collection-card"><div class="muted">Dealer Commission Paid</div><div id="financeDealerPaid" class="metric">₹0</div></div>
+      <div class="collection-card"><div class="muted">Net Cash Flow</div><div id="financeNet" class="metric">₹0</div></div>
+    </div>
+    <div class="card" style="margin-top:12px">
+      <h3 style="margin-top:0">Payment Collection Details</h3>
+      <div id="financePaymentTable" class="tablewrap"></div>
+    </div>
+    <div class="card" style="margin-top:12px">
+      <h3 style="margin-top:0">Expense Details</h3>
+      <div id="financeExpenseTable" class="tablewrap"></div>
+    </div>
+    <div class="card" style="margin-top:12px">
+      <h3 style="margin-top:0">Dealer Commission Payments</h3>
+      <div id="financeDealerTable" class="tablewrap"></div>
+    </div>`;
+  host.appendChild(panel);
+}
+
+function financeRange(){
+  const period=$('financePeriod')?.value||'today';
+  const now=new Date();
+  const today=localDateISO(now);
+  if(period==='all')return {from:'0000-01-01',to:'9999-12-31'};
+  if(period==='custom')return {from:$('financeFrom')?.value||today,to:$('financeTo')?.value||today};
+  if(period==='today')return {from:today,to:today};
+  if(period==='week'){
+    const d=new Date(now);
+    const day=(d.getDay()+6)%7;
+    d.setDate(d.getDate()-day);
+    return {from:localDateISO(d),to:today};
+  }
+  const d=new Date(now.getFullYear(),now.getMonth(),1);
+  return {from:localDateISO(d),to:today};
+}
+
+function financeInRange(date,range){
+  const d=String(date||'').slice(0,10);
+  return d>=range.from && d<=range.to;
+}
+
+function collectFinanceTransactions(range){
+  const payments=[];
+  const expenses=[];
+  const dealerPayments=[];
+
+  db.leads.forEach(l=>{
+    (Array.isArray(l.paymentHistory)?l.paymentHistory:[]).forEach(p=>{
+      if(financeInRange(p.date,range)){
+        payments.push({lead:l,p,amount:Number(p.amount||0),mode:p.mode||'Other'});
+      }
+    });
+    (Array.isArray(l.commissionHistory)?l.commissionHistory:[]).forEach(p=>{
+      if(financeInRange(p.date,range)){
+        dealerPayments.push({lead:l,p,amount:Number(p.amount||0),mode:p.mode||'Other'});
+      }
+    });
+  });
+
+  (Array.isArray(db.expenses)?db.expenses:[]).forEach(e=>{
+    if(financeInRange(e.date,range))expenses.push(e);
+  });
+
+  return {payments,expenses,dealerPayments};
+}
+
+function renderFinanceReports(){
+  ensureFinanceReports();
+  const range=financeRange();
+  const tx=collectFinanceTransactions(range);
+
+  const byMode={cash:0,upi:0,bank:0,other:0};
+  tx.payments.forEach(x=>{
+    const m=String(x.mode||'').toLowerCase();
+    if(m==='cash')byMode.cash+=x.amount;
+    else if(m==='upi')byMode.upi+=x.amount;
+    else if(m.includes('bank'))byMode.bank+=x.amount;
+    else byMode.other+=x.amount;
+  });
+
+  const receiptTotal=tx.payments.reduce((s,x)=>s+x.amount,0);
+  const expenseTotal=tx.expenses.reduce((s,x)=>s+Number(x.amount||0),0);
+  const dealerPaid=tx.dealerPayments.reduce((s,x)=>s+x.amount,0);
+  const net=receiptTotal-expenseTotal-dealerPaid;
+
+  const values={
+    financeReceived:money(receiptTotal),financeCash:money(byMode.cash),
+    financeUPI:money(byMode.upi),financeBank:money(byMode.bank),
+    financeOther:money(byMode.other),financeExpenses:money(expenseTotal),
+    financeDealerPaid:money(dealerPaid),financeNet:money(net)
+  };
+  Object.entries(values).forEach(([id,v])=>{if($(id))$(id).textContent=v;});
+
+  $('financePaymentTable').innerHTML=tx.payments.length?
+    `<table><thead><tr><th>Date</th><th>Customer</th><th>Plot</th><th>Amount</th><th>Mode</th><th>Reference</th></tr></thead><tbody>
+    ${tx.payments.map(x=>`<tr><td>${esc(x.p.date||'')}</td><td><b>${esc(x.lead.name)}</b></td><td>${esc(x.lead.dealPlotNumbers||'—')}</td><td><b>${money(x.amount)}</b></td><td>${esc(x.mode)}</td><td>${esc(x.p.reference||'')}</td></tr>`).join('')}
+    </tbody></table>`:'<div class="empty">No customer payments in this period.</div>';
+
+  $('financeExpenseTable').innerHTML=tx.expenses.length?
+    `<table><thead><tr><th>Date</th><th>Head</th><th>Amount</th><th>Mode</th><th>Note</th></tr></thead><tbody>
+    ${tx.expenses.map(e=>`<tr><td>${esc(e.date||'')}</td><td>${esc(e.head||'')}</td><td><b>${money(e.amount||0)}</b></td><td>${esc(e.mode||'')}</td><td>${esc(e.note||'')}</td></tr>`).join('')}
+    </tbody></table>`:'<div class="empty">No expenses in this period.</div>';
+
+  $('financeDealerTable').innerHTML=tx.dealerPayments.length?
+    `<table><thead><tr><th>Date</th><th>Dealer</th><th>Customer</th><th>Amount</th><th>Mode</th><th>Reference</th></tr></thead><tbody>
+    ${tx.dealerPayments.map(x=>`<tr><td>${esc(x.p.date||'')}</td><td><b>${esc(x.lead.dealerName||'')}</b></td><td>${esc(x.lead.name)}</td><td><b>${money(x.amount)}</b></td><td>${esc(x.mode)}</td><td>${esc(x.p.reference||'')}</td></tr>`).join('')}
+    </tbody></table>`:'<div class="empty">No dealer commission payments in this period.</div>';
+}
+
+function renderProfitDashboard(){
+  ensureProfitDashboard();
+  ensureExpenseData();
+
+  const sold=db.leads.filter(l=>l.status==='Closed' && Number(l.dealPrice||0)>0);
+  const sales=sold.reduce((s,l)=>s+Number(l.dealPrice||0),0);
+  const received=sold.reduce((s,l)=>s+Number(l.paidAmount||0),0);
+  const outstanding=Math.max(0,sales-received);
+  const otherExpenses=db.expenses.reduce((s,e)=>s+Number(e.amount||0),0);
+  const dealerCommission=sold.reduce((s,l)=>s+commissionCalc(l).total,0);
+  const totalExpense=otherExpenses+dealerCommission;
+  const grossProfit=sales-totalExpense;
+  const soldPlots=sold.reduce((s,l)=>s+(String(l.dealPlotNumbers||'').split(/[,/&]+/).map(x=>x.trim()).filter(Boolean).length||1),0);
+
+  const vals={
+    profitSales:money(sales),profitReceived:money(received),profitExpenses:money(otherExpenses),
+    profitDealerCommission:money(dealerCommission),profitTotalExpense:money(totalExpense),
+    profitGross:money(grossProfit),profitOutstanding:money(outstanding),profitSoldPlots:String(soldPlots)
+  };
+  Object.entries(vals).forEach(([id,v])=>{if($(id))$(id).textContent=v;});
+
+  const rows=db.expenses.slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
+  $('expenseHistoryList').innerHTML=rows.length?`<table><thead><tr><th>Date</th><th>Head</th><th>Amount</th><th>Mode</th><th>Note</th><th>Action</th></tr></thead><tbody>
+    ${rows.map(e=>`<tr><td>${esc(e.date||'')}</td><td>${esc(e.head||'')}</td><td><b>${money(e.amount||0)}</b></td><td>${esc(e.mode||'')}</td><td>${esc(e.note||'')}</td><td><button class="danger" onclick="deleteCRMExpense('${e.id}')">Delete</button></td></tr>`).join('')}
+  </tbody></table>`:'<div class="empty">No other expenses recorded.</div>';
+}
+
+function deleteCRMExpense(id){
+  if(!confirm('Delete this expense?'))return;
+  ensureExpenseData();
+  db.expenses=db.expenses.filter(e=>e.id!==id);
+  save();
+  renderProfitDashboard();
+}
+
+function renderDealerDashboard(){
+  ensureDealerStatementPanel();
+  renderDealerPerformance();
+  const data=db.leads.filter(l=>l.dealerName || (l.leadSource && l.leadSource!=='Direct'));
+  const totalDeals=data.length;
+  const dealValue=data.reduce((s,l)=>s+Number(l.dealPrice||0),0);
+  const commissionTotal=data.reduce((s,l)=>s+commissionCalc(l).total,0);
+  const commissionPending=data.reduce((s,l)=>s+commissionCalc(l).pending,0);
+  if($('dealerDealCount'))$('dealerDealCount').textContent=totalDeals;
+  if($('dealerDealValue'))$('dealerDealValue').textContent=money(dealValue);
+  if($('dealerCommissionTotal'))$('dealerCommissionTotal').textContent=money(commissionTotal);
+  if($('dealerCommissionPending'))$('dealerCommissionPending').textContent=money(commissionPending);
+
+  const q=($('dealerSearch')?.value||'').toLowerCase().trim();
+  const sf=$('dealerSourceFilter')?.value||'';
+  const cf=$('dealerCommissionFilter')?.value||'';
+  const rows=data.filter(l=>{
+    const c=commissionCalc(l);
+    const text=[l.dealerName,l.dealerMobile,l.name,l.mobile,l.dealPlotNumbers,l.leadSource].join(' ').toLowerCase();
+    return (!q||text.includes(q))&&(!sf||l.leadSource===sf)&&
+      (!cf||(cf==='pending'?c.pending>0:c.pending<=0));
+  });
+
+  if(!rows.length){
+    $('dealerList').innerHTML='<div class="empty">No dealer/source records found.</div>';
+    return;
+  }
+  $('dealerList').innerHTML=`<table><thead><tr>
+    <th>Dealer / Source</th><th>Customer / Plot</th><th>Deal</th><th>Commission</th><th>Paid</th><th>Pending</th><th>Action</th>
+  </tr></thead><tbody>${rows.map(l=>{
+    const c=commissionCalc(l);
+    return `<tr>
+      <td><b>${esc(l.dealerName||'—')}</b><div class="muted">${esc(l.dealerMobile||'')} · ${esc(l.leadSource||'Direct')}</div></td>
+      <td><b>${esc(l.name)}</b><div class="muted">${esc(l.dealPlotNumbers||'Plot not set')}</div></td>
+      <td>${money(l.dealPrice||0)}</td>
+      <td>${money(c.total)}<div class="muted">${l.commissionType==='fixed'?'Fixed':esc(l.commissionRate||0)+'%'}</div></td>
+      <td>${money(c.paid)}</td>
+      <td><b>${money(c.pending)}</b></td>
+      <td><div class="actions">
+        <button onclick="openDealer('${l.id}')">Edit</button>
+        ${c.pending>0?`<button onclick="openDealerPayment('${l.id}')">💸 Pay</button>`:''}
+        <button class="secondary" onclick="openLead('${l.id}')">View</button>
+      </div></td>
+    </tr>`;
+  }).join('')}</tbody></table>`;
+}
+
+function collectionData(){
+  return db.leads
+    .filter(l=>Number(l.dealPrice||0)>0)
+    .map(l=>{
+      const total=Number(l.dealPrice||0);
+      const paid=Math.min(total,Math.max(0,Number(l.paidAmount||0)));
+      const balance=Math.max(0,total-paid);
+      const plots=db.plots
+        .filter(p=>(p.linkedLeadIds||[]).includes(l.id)||p.leadId===l.id)
+        .map(p=>p.number).filter(Boolean);
+      return {l,total,paid,balance,plots};
+    });
+}
+
+function renderCollectionDashboard(){
+  const data=collectionData();
+  const dealTotal=data.reduce((s,x)=>s+x.total,0);
+  const paidTotal=data.reduce((s,x)=>s+x.paid,0);
+  const balanceTotal=data.reduce((s,x)=>s+x.balance,0);
+  const active=data.filter(x=>x.balance>0).length;
+
+  if($('collectionDealTotal'))$('collectionDealTotal').textContent=money(dealTotal);
+  if($('collectionPaidTotal'))$('collectionPaidTotal').textContent=money(paidTotal);
+  if($('collectionBalanceTotal'))$('collectionBalanceTotal').textContent=money(balanceTotal);
+  if($('collectionActiveCount'))$('collectionActiveCount').textContent=active;
+
+  const q=($('collectionSearch')?.value||'').toLowerCase().trim();
+  const sf=$('collectionStatusFilter')?.value||'';
+  const sort=$('collectionSort')?.value||'balance';
+
+  let rows=data.filter(x=>{
+    const text=[x.l.name,x.l.mobile,x.l.dealPlotNumbers,x.plots.join(' '),x.l.location].join(' ').toLowerCase();
+    return (!q||text.includes(q)) && (!sf||x.l.paymentStatus===sf);
+  });
+
+  rows.sort((a,b)=>{
+    if(sort==='name')return String(a.l.name||'').localeCompare(String(b.l.name||''));
+    if(sort==='date')return String(b.l.bookingDate||'').localeCompare(String(a.l.bookingDate||''));
+    return b.balance-a.balance;
+  });
+
+  if($('collectionPendingCount'))$('collectionPendingCount').textContent=rows.filter(x=>x.balance>0).length;
+
+  if(!rows.length){
+    $('collectionList').innerHTML='<div class="empty">No payment records found.</div>';
+    return;
+  }
+
+  $('collectionList').innerHTML=`
+    <table>
+      <thead>
+        <tr>
+          <th>Customer / Plot</th>
+          <th>Deal</th>
+          <th>Paid</th>
+          <th>Balance</th>
+          <th>Status</th>
+          <th>Progress</th>
+          <th>Next Payment</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows.map(x=>{
+          const pct=x.total?Math.min(100,Math.round(x.paid/x.total*100)):0;
+          return `<tr>
+            <td>
+              <b>${esc(x.l.name)}</b>
+              <div class="muted">${esc(x.l.mobile||'')}${x.plots.length?' · Plot '+esc(x.plots.join(', ')):''}</div>
+            </td>
+            <td>${money(x.total)}</td>
+            <td>${money(x.paid)}</td>
+            <td><b>${money(x.balance)}</b></td>
+            <td><span class="collection-status">${esc(x.l.paymentStatus||'Not Started')}</span></td>
+            <td>
+              ${pct}%
+              <div class="collection-progress"><span style="width:${pct}%"></span></div>
+            </td>
+            <td>
+              ${x.l.nextPaymentDate?`<b>${esc(x.l.nextPaymentDate)}</b><div class="muted">${x.l.nextPaymentAmount?money(x.l.nextPaymentAmount):'Amount not set'}</div>`:'<span class="muted">Not scheduled</span>'}
+            </td>
+            <td>
+              <div class="actions">
+                ${x.balance>0 && x.l.status!=='Lost'?`<button onclick="openPayment('${x.l.id}')">💰 Collect</button>`:''}
+                <button class="secondary" onclick="openPaymentSchedule('${x.l.id}')">📅 Schedule</button>
+                ${Array.isArray(x.l.paymentHistory)&&x.l.paymentHistory.length?`<button class="secondary" onclick="showPaymentReceipt('${x.l.id}',0)">🧾 Receipt</button>`:''}
+                <button class="secondary" onclick="openLead('${x.l.id}')">View</button>
+              </div>
+            </td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>`;
+}
+
+function refreshCollectionDashboard(){
+  renderCollectionDashboard();
+  alert('Collection Dashboard refreshed.');
+}
+
 function renderAll(){
+  ensurePlotLeadHistory();
+  renderPlotLeadHistory();
+  ensureMainDashboard();
+  renderMainDashboard();
+  ensureFinanceReports();
+  renderFinanceReports();
+  ensureProfitDashboard();
+  renderProfitDashboard();
   renderLeads();
   renderPlots();
   renderDashboard();
@@ -2001,3 +3253,43 @@ init();
 
 </body>
 </html>
+
+<script>
+function showProfitDashboard(){
+  ensureProfitDashboard();
+  document.querySelectorAll('.view').forEach(v=>v.style.display='none');
+  const p=$('profitDashboardPanel');
+  if(p)p.style.display='block';
+  renderProfitDashboard();
+}
+</script>
+
+<script>
+function showFinanceReports(){
+  ensureFinanceReports();
+  document.querySelectorAll('.view').forEach(v=>v.style.display='none');
+  const p=$('financeReportsPanel');
+  if(p)p.style.display='block';
+  renderFinanceReports();
+}
+</script>
+
+<script>
+function showMainDashboard(){
+  ensureMainDashboard();
+  document.querySelectorAll('.view').forEach(v=>v.style.display='none');
+  const p=$('mainDashboardPanel');
+  if(p)p.style.display='block';
+  renderMainDashboard();
+}
+</script>
+
+<script>
+function showPlotLeadHistoryPanel(){
+  ensurePlotLeadHistory();
+  document.querySelectorAll('.view').forEach(v=>v.style.display='none');
+  const p=$('plotLeadHistoryPanel');
+  if(p)p.style.display='block';
+  renderPlotLeadHistory();
+}
+</script>
