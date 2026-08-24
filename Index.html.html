@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#075e54">
+<title>Gokul Dham CRM</title>
+<style>
+:root{--brand:#075e54;--brand2:#128c7e;--muted:#667085;--line:#e5e7eb;--bg:#f5f7f9;--card:#fff;--danger:#d92d20;--warn:#b54708;--hot:#b42318;--good:#027a48}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:Arial,sans-serif;color:#17202a}
+header{position:sticky;top:0;z-index:5;background:var(--brand);color:#fff;padding:14px 18px;box-shadow:0 2px 8px #0002}
+header h1{margin:0;font-size:21px}header small{opacity:.9}
+main{max-width:1200px;margin:auto;padding:16px}
+.view{display:none}.view.active{display:block}
+h2{margin:6px 0 12px}.row{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+button{border:0;border-radius:9px;padding:10px 14px;font-weight:700;cursor:pointer;background:var(--brand);color:#fff}
+button.secondary{background:#eef2f4;color:#17202a}button.danger{background:#fee4e2;color:var(--danger)}
+button.call{background:#064e3b}button.wa{background:#e7f7ee;color:#087443}
+.grid{display:grid;gap:12px}.cards{grid-template-columns:repeat(4,1fr)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;box-shadow:0 1px 3px #0000000d}
+.metric{font-size:26px;font-weight:800}.muted{color:var(--muted);font-size:13px}
+.formgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.field label{display:block;font-size:13px;color:var(--muted);margin-bottom:5px}
+input,select,textarea{width:100%;padding:11px 12px;border:1px solid #cfd5dc;border-radius:9px;background:#fff;font:inherit}
+textarea{min-height:90px;resize:vertical}
+.filters{display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr;gap:8px;margin:12px 0}
+.list{display:grid;gap:10px}.lead{background:#fff;border:1px solid var(--line);border-radius:12px;padding:13px}
+.leadtop{display:flex;justify-content:space-between;gap:10px}.lead h3{margin:0 0 5px}
+.badge{display:inline-block;padding:4px 8px;border-radius:999px;font-size:12px;font-weight:700;background:#eef2f4;margin-right:4px}
+.badge.hot{background:#fee4e2;color:var(--hot)}.badge.warm{background:#fff4e5;color:var(--warn)}.badge.cold{background:#eaf2ff;color:#175cd3}
+.badge.good{background:#e7f7ee;color:var(--good)}
+.actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
+.dialog{border:0;border-radius:14px;width:min(560px,94vw);padding:0;max-height:92vh}
+.dialog::backdrop{background:#0008}.dlgbody{padding:18px}.dlghead{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.empty{text-align:center;color:var(--muted);padding:30px}
+table{width:100%;border-collapse:collapse}.tablewrap{overflow:auto}.tablewrap td,.tablewrap th{padding:9px;border-bottom:1px solid var(--line);text-align:left;font-size:13px}
+.notice{padding:10px;border-radius:9px;background:#fff8e8;color:#7a4a00;font-size:13px}
+.map{width:100%;max-height:500px;object-fit:contain;border-radius:12px;border:1px solid var(--line);background:#fff}
+@media(max-width:800px){.cards{grid-template-columns:repeat(2,1fr)}.filters{grid-template-columns:1fr 1fr}.formgrid{grid-template-columns:1fr}}
+@media(max-width:520px){main{padding:10px}.cards{grid-template-columns:1fr 1fr}.filters{grid-template-columns:1fr}.actions button{flex:1}}
+</style>
+</head>
+<body>
+<header><h1>Gokul Dham CRM</h1><small>Sector-13, Hansi · Free offline-first version</small></header>
+
+<main>
+<section id="dashboard" class="view active">
+  <div class="row"><h2>Dashboard</h2><button onclick="openLead()">+ Add Lead</button></div>
+  <div id="metrics" class="grid cards"></div>
+  <div class="card" style="margin-top:12px"><h3>Today's Follow-ups</h3><div id="todayFollowups" class="list"></div></div>
+  <div class="card" style="margin-top:12px"><h3>Lead Pipeline</h3><div id="pipeline" class="tablewrap"></div></div>
+</section>
+
+<section id="leads" class="view">
+  <div class="row"><h2>Leads</h2><button onclick="openLead()">+ Add Lead</button></div>
+  <div class="filters">
+    <input id="search" placeholder="Search name/mobile/category/location..." oninput="renderLeads()">
+    <select id="catFilter" onchange="renderLeads()"><option value="">All categories</option></select>
+    <select id="locFilter" onchange="renderLeads()"><option value="">All locations</option></select>
+    <select id="priorityFilter" onchange="renderLeads()"><option value="">All priorities</option><option>Hot</option><option>Warm</option><option>Cold</option></select>
+    <select id="statusFilter" onchange="renderLeads()"><option value="">All status</option></select>
+  </div>
+  <div id="leadList" class="list"></div>
+</section>
+
+<section id="map" class="view">
+  <h2>Master Map</h2>
+  <div class="notice">Use your supplied Gokul Dham Sector-13 Hansi map. Availability is based only on your verified CRM records.</div>
+  <img class="map" src="assets/gokuldham-map.png" alt="Gokul Dham Sector-13 Hansi map" onerror="this.style.display='none'">
+</section>
+
+<section id="reports" class="view">
+  <h2>Reports</h2>
+  <div id="reportBox" class="card"></div>
+</section>
+</main>
+
+<nav style="position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);display:flex;justify-content:center;gap:8px;padding:8px;z-index:6">
+<button onclick="show('dashboard')">Dashboard</button>
+<button onclick="show('leads')">Leads</button>
+<button onclick="show('map')">Map</button>
+<button onclick="show('reports')">Reports</button>
+</nav>
+
+<dialog id="leadDlg" class="dialog">
+<form method="dialog" class="dlgbody" onsubmit="saveLead(event)">
+<div class="dlghead"><h2 id="dlgTitle">Add Lead</h2><button type="button" class="secondary" onclick="leadDlg.close()">✕</button></div>
+<input type="hidden" id="leadId">
+<div class="formgrid">
+<div class="field"><label>Name / Business Name *</label><input id="name" required></div>
+<div class="field"><label>Mobile *</label><input id="mobile" inputmode="tel" required></div>
+<div class="field"><label>Business Category *</label><select id="category" required></select></div>
+<div class="field"><label>Location *</label><select id="location" required></select></div>
+<div class="field"><label>Budget (₹)</label><input id="budget" type="number" min="0"></div>
+<div class="field"><label>Required Size (Sq.Yd.)</label><input id="size" type="number" min="0"></div>
+<div class="field"><label>Source</label><select id="source"><option>Facebook</option><option>WhatsApp</option><option>Phone</option><option>Referral</option><option>Site Visit</option><option>Other</option></select></div>
+<div class="field"><label>Status</label><select id="status"></select></div>
+<div class="field"><label>Priority</label><select id="priority"><option>Hot</option><option selected>Warm</option><option>Cold</option></select></div>
+<div class="field"><label>Preference</label><input id="preference" placeholder="Corner / Park / 50-ft road"></div>
+<div class="field"><label>Next Follow-up</label><input id="followup" type="date"></div>
+<div class="field"><label>Notes</label><textarea id="notes" placeholder="Conversation, requirement, next action..."></textarea></div>
+</div>
+<div class="row" style="margin-top:14px"><button type="submit">Save Lead</button><button type="button" class="secondary" onclick="leadDlg.close()">Cancel</button></div>
+</form>
+</dialog>
+
+<script>
+const KEY='gokuldham_crm_v2';
+const CATEGORIES=['Property Dealer / Builder','Investor','Buyer','Seller','Contractor','Architect','Bank / Finance','Other'];
+const LOCATIONS=['Sampla','Rohtak','Bahadurgarh','Hansi','Gokul Dham Sector-13','Jhajjar','Delhi','Other'];
+const STATUSES=['New','Contacted','Interested','Site Visit','Negotiation','Closed','Lost'];
+let db=JSON.parse(localStorage.getItem(KEY)||'{"leads":[]}');
+const $=id=>document.getElementById(id);
+function save(){localStorage.setItem(KEY,JSON.stringify(db))}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
+function money(n){return '₹'+Number(n||0).toLocaleString('en-IN')}
+function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
+function fillSelect(id,arr,all=false){const e=$(id);e.innerHTML=(all?'<option value="">All</option>':'')+arr.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join('')}
+function init(){
+ fillSelect('catFilter',CATEGORIES,true);fillSelect('locFilter',LOCATIONS,true);fillSelect('statusFilter',STATUSES,true);
+ fillSelect('category',CATEGORIES);fillSelect('location',LOCATIONS);fillSelect('status',STATUSES);
+ renderAll()
+}
+function show(id){document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));$(id).classList.add('active');if(id==='leads')renderLeads();if(id==='dashboard')renderDashboard();if(id==='reports')renderReports();window.scrollTo(0,0)}
+function openLead(id=''){
+ $('leadId').value=id;$('dlgTitle').textContent=id?'Edit Lead':'Add Lead';
+ if(id){const l=db.leads.find(x=>x.id===id);if(!l)return;['name','mobile','category','location','budget','size','source','status','priority','preference','followup','notes'].forEach(k=>$(k).value=l[k]??'')}
+ else {['name','mobile','budget','size','preference','followup','notes'].forEach(k=>$(k).value='');$('source').value='Facebook';$('status').value='New';$('priority').value='Warm';$('category').value=CATEGORIES[0];$('location').value=LOCATIONS[0]}
+ leadDlg.showModal();setTimeout(()=>$('name').focus(),100)
+}
+function saveLead(e){e.preventDefault();const id=$('leadId').value;const l={id:id||uid(),name:$('name').value.trim(),mobile:$('mobile').value.trim(),category:$('category').value,location:$('location').value,budget:Number($('budget').value||0),size:Number($('size').value||0),source:$('source').value,status:$('status').value,priority:$('priority').value,preference:$('preference').value.trim(),followup:$('followup').value,notes:$('notes').value.trim(),updated:new Date().toISOString()};if(id){const i=db.leads.findIndex(x=>x.id===id);db.leads[i]=l}else db.leads.unshift(l);save();leadDlg.close();renderAll()}
+function delLead(id){if(confirm('Delete this lead?')){db.leads=db.leads.filter(x=>x.id!==id);save();renderAll()}}
+function callLead(m){if(m)location.href='tel:'+m}
+function waLead(m){if(m)window.open('https://wa.me/'+m.replace(/\D/g,''),'_blank')}
+function score(l){return (l.priority==='Hot'?30:l.priority==='Warm'?20:10)+(l.status==='Site Visit'?25:l.status==='Negotiation'?30:l.status==='Interested'?20:l.status==='Contacted'?10:0)+(l.budget?15:0)+(l.size?10:0)}
+function leadHTML(l){const p=l.priority.toLowerCase();return `<div class="lead"><div class="leadtop"><div><h3>${esc(l.name)}</h3><div class="muted">${esc(l.mobile)} · ${esc(l.category)} · ${esc(l.location)}</div></div><div><span class="badge ${p}">${esc(l.priority)}</span><span class="badge">${esc(l.status)}</span></div></div><div class="muted" style="margin-top:7px">Budget: ${money(l.budget)} · Size: ${l.size||'-'} Sq.Yd. · Source: ${esc(l.source)} · Follow-up: ${l.followup||'Not set'}</div>${l.preference?`<div class="muted">Preference: ${esc(l.preference)}</div>`:''}${l.notes?`<div style="margin-top:7px">${esc(l.notes)}</div>`:''}<div class="actions"><button onclick="openLead('${l.id}')">Edit</button><button class="call" onclick="callLead('${esc(l.mobile)}')">Call</button><button class="wa" onclick="waLead('${esc(l.mobile)}')">WhatsApp</button><button class="danger" onclick="delLead('${l.id}')">Delete</button></div></div>`}
+function renderLeads(){const q=($('search').value||'').toLowerCase();const c=$('catFilter').value,lo=$('locFilter').value,p=$('priorityFilter').value,s=$('statusFilter').value;const a=db.leads.filter(l=>(!q||[l.name,l.mobile,l.category,l.location,l.preference,l.notes].join(' ').toLowerCase().includes(q))&&(!c||l.category===c)&&(!lo||l.location===lo)&&(!p||l.priority===p)&&(!s||l.status===s));$('leadList').innerHTML=a.length?a.map(leadHTML).join(''):'<div class="card empty">No leads found.</div>'}
+function renderDashboard(){const total=db.leads.length,hot=db.leads.filter(x=>x.priority==='Hot').length,sv=db.leads.filter(x=>x.status==='Site Visit').length,closed=db.leads.filter(x=>x.status==='Closed').length;$('metrics').innerHTML=[['Total Leads',total],['Hot Leads',hot],['Site Visits',sv],['Closed',closed]].map(x=>`<div class="card"><div class="muted">${x[0]}</div><div class="metric">${x[1]}</div></div>`).join('');const today=new Date().toISOString().slice(0,10);const f=db.leads.filter(x=>x.followup===today);$('todayFollowups').innerHTML=f.length?f.map(leadHTML).join(''):'<div class="empty">No follow-ups scheduled for today.</div>';const rows=STATUSES.map(s=>`<tr><td>${s}</td><td>${db.leads.filter(x=>x.status===s).length}</td></tr>`).join('');$('pipeline').innerHTML=`<table><tr><th>Status</th><th>Leads</th></tr>${rows}</table>`}
+function renderReports(){const byLoc=LOCATIONS.map(x=>[x,db.leads.filter(l=>l.location===x).length]).filter(x=>x[1]);const byCat=CATEGORIES.map(x=>[x,db.leads.filter(l=>l.category===x).length]).filter(x=>x[1]);$('reportBox').innerHTML=`<h3>Location Report</h3>${byLoc.length?byLoc.map(x=>`<p><b>${esc(x[0])}</b>: ${x[1]}</p>`).join(''):'<p class="muted">No data</p>'}<h3>Category Report</h3>${byCat.length?byCat.map(x=>`<p><b>${esc(x[0])}</b>: ${x[1]}</p>`).join(''):'<p class="muted">No data</p>'}<button onclick="exportCSV()">Export Leads CSV</button>`}
+function exportCSV(){const cols=['name','mobile','category','location','budget','size','source','status','priority','preference','followup','notes'];const csv=[cols.join(','),...db.leads.map(l=>cols.map(k=>`"${String(l[k]??'').replaceAll('"','""')}"`).join(','))].join('\\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='gokul-dham-leads.csv';a.click();URL.revokeObjectURL(a.href)}
+function renderAll(){renderLeads();renderDashboard();renderReports()}
+init();
+</script>
+</body>
+</html>
