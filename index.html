@@ -122,6 +122,15 @@ table{width:100%;border-collapse:collapse}
   font-size:12px;
 }
 
+
+.plot-status{font-weight:700}
+.plot-available{background:#e7f7ee;color:#027a48}
+.plot-hold{background:#fff4e5;color:#b54708}
+.plot-negotiation{background:#eaf2ff;color:#175cd3}
+.plot-sold{background:#fee4e2;color:#b42318}
+.plot-blocked{background:#eef2f4;color:#475467}
+.plot-mapbtn{background:#17202a}
+
 @media(max-width:800px){
   .cards{grid-template-columns:repeat(2,1fr)}
   .filters{grid-template-columns:1fr 1fr}
@@ -197,6 +206,129 @@ table{width:100%;border-collapse:collapse}
   </div>
 </section>
 
+
+<section id="plots" class="view">
+  <div class="row">
+    <h2>Plot Management</h2>
+    <button type="button" onclick="openPlot()">+ Add Plot</button>
+  </div>
+
+  <div class="notice" style="margin:10px 0">
+    Plot numbers are kept blank until you enter the exact number from the supplied map.
+    This prevents incorrect plot information from being attached to the wrong location.
+  </div>
+
+  <div class="filters" style="grid-template-columns:2fr 1fr 1fr 1fr">
+    <input id="plotSearch" placeholder="Search plot number / notes..." oninput="renderPlots()">
+    <select id="plotStatusFilter" onchange="renderPlots()">
+      <option value="">All plot status</option>
+      <option>Available</option>
+      <option>Hold</option>
+      <option>Negotiation</option>
+      <option>Sold</option>
+      <option>Blocked</option>
+    </select>
+    <select id="plotFacingFilter" onchange="renderPlots()">
+      <option value="">All facing</option>
+      <option>Road</option>
+      <option>Park</option>
+      <option>Corner</option>
+      <option>Other</option>
+    </select>
+    <select id="plotLeadFilter" onchange="renderPlots()">
+      <option value="">All customer links</option>
+      <option value="linked">Linked to lead</option>
+      <option value="unlinked">No lead</option>
+    </select>
+  </div>
+
+  <div id="plotList" class="list"></div>
+</section>
+
+<dialog id="plotDlg" class="dialog">
+<form method="dialog" class="dlgbody" onsubmit="savePlot(event)">
+  <div class="dlghead">
+    <h2 id="plotDlgTitle">Add Plot</h2>
+    <button type="button" class="secondary" onclick="plotDlg.close()">✕</button>
+  </div>
+
+  <input type="hidden" id="plotId">
+
+  <div class="formgrid">
+    <div class="field">
+      <label>Plot Number *</label>
+      <input id="plotNumber" required placeholder="Enter exact map plot number">
+    </div>
+
+    <div class="field">
+      <label>Size (Sq.Yd.)</label>
+      <input id="plotSize" type="number" min="0">
+    </div>
+
+    <div class="field">
+      <label>Road Width</label>
+      <input id="plotRoad" placeholder="e.g. 30 ft / 50 ft">
+    </div>
+
+    <div class="field">
+      <label>Facing</label>
+      <select id="plotFacing">
+        <option>Road</option>
+        <option>Park</option>
+        <option>Corner</option>
+        <option>Other</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>Status</label>
+      <select id="plotStatus">
+        <option>Available</option>
+        <option>Hold</option>
+        <option>Negotiation</option>
+        <option>Sold</option>
+        <option>Blocked</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>Asking Price (₹)</label>
+      <input id="plotPrice" type="number" min="0">
+    </div>
+
+    <div class="field">
+      <label>Owner / Dealer</label>
+      <input id="plotOwner">
+    </div>
+
+    <div class="field">
+      <label>Linked Customer / Lead</label>
+      <select id="plotLead"></select>
+    </div>
+
+    <div class="field">
+      <label>Map Position X</label>
+      <input id="plotX" type="number" step="0.1" placeholder="Later">
+    </div>
+
+    <div class="field">
+      <label>Map Position Y</label>
+      <input id="plotY" type="number" step="0.1" placeholder="Later">
+    </div>
+
+    <div class="field" style="grid-column:1/-1">
+      <label>Notes</label>
+      <textarea id="plotNotes" placeholder="Plot details, owner notes, negotiation notes..."></textarea>
+    </div>
+  </div>
+
+  <div class="row" style="margin-top:14px">
+    <button type="submit">Save Plot</button>
+    <button type="button" class="secondary" onclick="plotDlg.close()">Cancel</button>
+  </div>
+</form>
+</dialog>
+
 <section id="reports" class="view">
   <h2>Reports</h2>
   <div id="reportBox" class="card"></div>
@@ -208,6 +340,7 @@ table{width:100%;border-collapse:collapse}
   <button onclick="show('dashboard')">Dashboard</button>
   <button onclick="show('leads')">Leads</button>
   <button onclick="show('map')">Map</button>
+  <button onclick="show('plots')">Plots</button>
   <button onclick="show('reports')">Reports</button>
 </nav>
 
@@ -274,7 +407,9 @@ const STATUSES=[
   'Negotiation','Closed','Lost'
 ];
 
-let db=JSON.parse(localStorage.getItem(KEY)||'{"leads":[]}');
+let db=JSON.parse(localStorage.getItem(KEY)||'{"leads":[],"plots":[]}');
+if(!Array.isArray(db.leads))db.leads=[];
+if(!Array.isArray(db.plots))db.plots=[];
 const $=id=>document.getElementById(id);
 
 function save(){localStorage.setItem(KEY,JSON.stringify(db))}
@@ -309,6 +444,7 @@ function show(id){
   $(id).classList.add('active');
   if(id==='leads')renderLeads();
   if(id==='dashboard')renderDashboard();
+  if(id==='plots')renderPlots();
   if(id==='reports')renderReports();
   if(id==='map')setTimeout(()=>mapFitIfNeeded(),50);
   window.scrollTo(0,0);
@@ -476,7 +612,7 @@ function renderReports(){
   ]).filter(x=>x[1]);
 
   $('reportBox').innerHTML=
-    `<h3>Location Report</h3>`+
+    `<h3>Plot Summary</h3><p><b>Total plot records:</b> ${db.plots.length}</p><p><b>Available:</b> ${db.plots.filter(x=>x.status==='Available').length} · <b>Hold:</b> ${db.plots.filter(x=>x.status==='Hold').length} · <b>Sold:</b> ${db.plots.filter(x=>x.status==='Sold').length}</p><h3>Location Report</h3>`+
     (byLoc.length?
       byLoc.map(x=>`<p><b>${esc(x[0])}</b>: ${x[1]}</p>`).join(''):
       '<p class="muted">No data</p>')+
@@ -501,8 +637,161 @@ function exportCSV(){
   URL.revokeObjectURL(a.href);
 }
 
+
+function plotStatusClass(status){
+  return String(status||'').toLowerCase().replace(/\s+/g,'-');
+}
+
+function populatePlotLeadSelect(selected=''){
+  const e=$('plotLead');
+  e.innerHTML='<option value="">No customer linked</option>'+
+    db.leads.map(l=>`<option value="${esc(l.id)}">${esc(l.name)} · ${esc(l.mobile)}</option>`).join('');
+  e.value=selected||'';
+}
+
+function openPlot(id=''){
+  $('plotId').value=id;
+  $('plotDlgTitle').textContent=id?'Edit Plot':'Add Plot';
+  populatePlotLeadSelect('');
+
+  if(id){
+    const p=db.plots.find(x=>x.id===id);
+    if(!p)return;
+
+    $('plotNumber').value=p.number||'';
+    $('plotSize').value=p.size||'';
+    $('plotRoad').value=p.road||'';
+    $('plotFacing').value=p.facing||'Road';
+    $('plotStatus').value=p.status||'Available';
+    $('plotPrice').value=p.price||'';
+    $('plotOwner').value=p.owner||'';
+    $('plotX').value=p.x??'';
+    $('plotY').value=p.y??'';
+    $('plotNotes').value=p.notes||'';
+    populatePlotLeadSelect(p.leadId||'');
+  }else{
+    $('plotNumber').value='';
+    $('plotSize').value='';
+    $('plotRoad').value='';
+    $('plotFacing').value='Road';
+    $('plotStatus').value='Available';
+    $('plotPrice').value='';
+    $('plotOwner').value='';
+    $('plotX').value='';
+    $('plotY').value='';
+    $('plotNotes').value='';
+  }
+
+  plotDlg.showModal();
+  setTimeout(()=>$('plotNumber').focus(),100);
+}
+
+function savePlot(e){
+  e.preventDefault();
+
+  const id=$('plotId').value;
+  const number=$('plotNumber').value.trim();
+
+  if(!number){
+    alert('Plot number is required.');
+    return;
+  }
+
+  const p={
+    id:id||uid(),
+    number:number,
+    size:Number($('plotSize').value||0),
+    road:$('plotRoad').value.trim(),
+    facing:$('plotFacing').value,
+    status:$('plotStatus').value,
+    price:Number($('plotPrice').value||0),
+    owner:$('plotOwner').value.trim(),
+    leadId:$('plotLead').value||'',
+    x:$('plotX').value===''?null:Number($('plotX').value),
+    y:$('plotY').value===''?null:Number($('plotY').value),
+    notes:$('plotNotes').value.trim(),
+    updated:new Date().toISOString()
+  };
+
+  if(id){
+    const i=db.plots.findIndex(x=>x.id===id);
+    if(i>=0)db.plots[i]=p;
+  }else{
+    db.plots.unshift(p);
+  }
+
+  save();
+  plotDlg.close();
+  renderPlots();
+  renderReports();
+}
+
+function delPlot(id){
+  if(confirm('Delete this plot record?')){
+    db.plots=db.plots.filter(x=>x.id!==id);
+    save();
+    renderPlots();
+    renderReports();
+  }
+}
+
+function renderPlots(){
+  const q=($('plotSearch')?.value||'').toLowerCase();
+  const s=$('plotStatusFilter')?.value||'';
+  const f=$('plotFacingFilter')?.value||'';
+  const lf=$('plotLeadFilter')?.value||'';
+
+  const a=db.plots.filter(p=>{
+    const lead=!!p.leadId;
+    return (!q||[p.number,p.road,p.owner,p.notes].join(' ').toLowerCase().includes(q)) &&
+      (!s||p.status===s) &&
+      (!f||p.facing===f) &&
+      (!lf||(lf==='linked'?lead:!lead));
+  });
+
+  if(!a.length){
+    $('plotList').innerHTML='<div class="card empty">No plot records yet. Add the exact plot number from the map.</div>';
+    return;
+  }
+
+  $('plotList').innerHTML=a.map(p=>{
+    const lead=db.leads.find(l=>l.id===p.leadId);
+    const cls=plotStatusClass(p.status);
+
+    return `<div class="lead">
+      <div class="leadtop">
+        <div>
+          <h3>Plot ${esc(p.number)}</h3>
+          <div class="muted">
+            ${p.size?p.size+' Sq.Yd. · ':''}${esc(p.road||'Road width not set')} · ${esc(p.facing||'Facing not set')}
+          </div>
+        </div>
+        <span class="badge plot-${cls}">${esc(p.status)}</span>
+      </div>
+
+      <div class="muted" style="margin-top:7px">
+        Price: ${p.price?money(p.price):'Not set'} · Owner/Dealer: ${esc(p.owner||'Not set')}
+      </div>
+
+      ${lead?
+        `<div style="margin-top:7px"><b>Linked Lead:</b> ${esc(lead.name)} · ${esc(lead.mobile)}</div>`:
+        '<div class="muted" style="margin-top:7px">No customer linked</div>'}
+
+      ${p.notes?`<div style="margin-top:7px">${esc(p.notes)}</div>`:''}
+
+      <div class="actions">
+        <button onclick="openPlot('${p.id}')">Edit</button>
+        <button class="plot-mapbtn" onclick="show('map')">Open Map</button>
+        <button class="danger" onclick="delPlot('${p.id}')">Delete</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+
 function renderAll(){
   renderLeads();
+  renderPlots();
   renderDashboard();
   renderReports();
 }
