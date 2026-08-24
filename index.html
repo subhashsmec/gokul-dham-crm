@@ -154,6 +154,33 @@ table{width:100%;border-collapse:collapse}
   transform-origin:center center;
   will-change:transform;
 }
+.plotdetail-dialog{
+  border:0;border-radius:16px;width:min(560px,94vw);padding:0;
+  max-height:90vh;overflow:auto;box-shadow:0 18px 60px #0006;
+}
+.plotdetail-dialog::backdrop{background:#0009}
+.plotdetail-body{padding:18px}
+.plotdetail-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+.plotdetail-title{margin:0;font-size:24px}
+.plotdetail-status{display:inline-block;margin-top:5px;padding:5px 10px;border-radius:999px;font-size:12px;font-weight:800}
+.plotdetail-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
+.plotdetail-item{border:1px solid var(--line);border-radius:10px;padding:10px;background:#fafafa}
+.plotdetail-label{font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase}
+.plotdetail-value{margin-top:3px;font-weight:700;color:#17202a;word-break:break-word}
+.plotdetail-notes{margin-top:12px;border-left:4px solid var(--brand);padding:10px 12px;background:#f7f9fa;border-radius:8px}
+.plotdetail-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+.plotdetail-actions a,.plotdetail-actions button{
+  display:inline-flex;align-items:center;justify-content:center;text-decoration:none;
+  min-height:40px;padding:9px 13px;border-radius:9px;border:0;cursor:pointer;font-weight:700;
+}
+.plotdetail-actions .call{background:#e7f7ee;color:#087443}
+.plotdetail-actions .wa{background:#e7f7ee;color:#087443}
+.plotdetail-actions .edit{background:var(--brand);color:#fff}
+.plotdetail-actions .close{background:#eef2f4;color:#17202a}
+@media(max-width:520px){
+  .plotdetail-grid{grid-template-columns:1fr}
+}
+
 
 @media(max-width:800px){
   .cards{grid-template-columns:repeat(2,1fr)}
@@ -269,6 +296,21 @@ table{width:100%;border-collapse:collapse}
 
   <div id="plotList" class="list"></div>
 </section>
+
+<dialog id="plotDetailsDlg" class="plotdetail-dialog">
+  <div class="plotdetail-body">
+    <div class="plotdetail-head">
+      <div>
+        <h2 id="plotDetailsTitle" class="plotdetail-title">Plot Details</h2>
+        <span id="plotDetailsStatus" class="plotdetail-status">Available</span>
+      </div>
+      <button type="button" class="secondary" onclick="closePlotDetails()">✕</button>
+    </div>
+
+    <div id="plotDetailsContent"></div>
+    <div id="plotDetailsActions" class="plotdetail-actions"></div>
+  </div>
+</dialog>
 
 <dialog id="plotDlg" class="dialog">
 <form method="dialog" class="dlgbody" onsubmit="savePlot(event)">
@@ -674,6 +716,78 @@ function populatePlotLeadSelect(selected=''){
   e.value=selected||'';
 }
 
+
+function normalizeIndianMobile(value){
+  let n=String(value||'').replace(/\D/g,'');
+  if(n.length===10)n='91'+n;
+  if(n.startsWith('0') && n.length===11)n='91'+n.slice(1);
+  return n;
+}
+
+function openPlotDetails(id){
+  const p=db.plots.find(x=>x.id===id);
+  if(!p)return;
+
+  const lead=p.leadId ? db.leads.find(l=>l.id===p.leadId) : null;
+  const status=String(p.status||'Unknown');
+  const cls=plotStatusClass(status);
+
+  $('plotDetailsTitle').textContent='Plot '+(p.number||'');
+  const statusEl=$('plotDetailsStatus');
+  statusEl.textContent=status;
+  statusEl.className='plotdetail-status plot-'+cls;
+
+  $('plotDetailsContent').innerHTML=`
+    <div class="plotdetail-grid">
+      <div class="plotdetail-item">
+        <div class="plotdetail-label">Size</div>
+        <div class="plotdetail-value">${p.size ? esc(p.size)+' Sq.Yd.' : 'Not set'}</div>
+      </div>
+      <div class="plotdetail-item">
+        <div class="plotdetail-label">Road Width</div>
+        <div class="plotdetail-value">${esc(p.road||'Not set')}</div>
+      </div>
+      <div class="plotdetail-item">
+        <div class="plotdetail-label">Facing</div>
+        <div class="plotdetail-value">${esc(p.facing||'Not set')}</div>
+      </div>
+      <div class="plotdetail-item">
+        <div class="plotdetail-label">Asking Price</div>
+        <div class="plotdetail-value">${p.price ? money(p.price) : 'Not set'}</div>
+      </div>
+      <div class="plotdetail-item">
+        <div class="plotdetail-label">Owner / Dealer</div>
+        <div class="plotdetail-value">${esc(p.owner||'Not set')}</div>
+      </div>
+      <div class="plotdetail-item">
+        <div class="plotdetail-label">Linked Customer</div>
+        <div class="plotdetail-value">${lead ? esc(lead.name)+' · '+esc(lead.mobile) : 'No customer linked'}</div>
+      </div>
+    </div>
+    ${p.notes ? `<div class="plotdetail-notes"><b>Notes:</b><br>${esc(p.notes)}</div>` : ''}
+  `;
+
+  const actions=$('plotDetailsActions');
+  let html=`<button type="button" class="edit" onclick="closePlotDetails();openPlot('${p.id}')">✏️ Edit Plot</button>`;
+  if(lead && lead.mobile){
+    const tel=String(lead.mobile).replace(/[^\d+]/g,'');
+    const wa=normalizeIndianMobile(lead.mobile);
+    html+=`<a class="call" href="tel:${esc(tel)}">📞 Call</a>`;
+    if(wa) html+=`<a class="wa" href="https://wa.me/${wa}" target="_blank" rel="noopener">💬 WhatsApp</a>`;
+  }
+  html+=`<button type="button" class="close" onclick="closePlotDetails()">Close</button>`;
+  actions.innerHTML=html;
+
+  const dlg=$('plotDetailsDlg');
+  if(dlg.showModal) dlg.showModal();
+  else dlg.setAttribute('open','');
+}
+
+function closePlotDetails(){
+  const dlg=$('plotDetailsDlg');
+  if(dlg && dlg.open) dlg.close();
+}
+
 function openPlot(id=''){
   $('plotId').value=id;
   $('plotDlgTitle').textContent=id?'Edit Plot':'Add Plot';
@@ -913,13 +1027,13 @@ function renderMapPlotMarkers(){
     m.type='button';
     m.className='plot-marker '+plotStatusClass(p.status||'unknown');
     m.textContent=''+p.number;
-    m.title='Plot '+p.number+' · '+(p.status||'');
+    m.title='Plot '+p.number+' · Click for details · '+(p.status||'');
     m.style.left=(p.x*100)+'%';
     m.style.top=(p.y*100)+'%';
     m.addEventListener('click',function(e){
       e.preventDefault();
       e.stopPropagation();
-      openPlot(p.id);
+      openPlotDetails(p.id);
     });
     layer.appendChild(m);
   });
