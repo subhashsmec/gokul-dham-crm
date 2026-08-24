@@ -1125,15 +1125,42 @@ function completeFollowup(id){
 function rescheduleFollowup(id){
   const l=db.leads.find(x=>x.id===id);
   if(!l)return;
-  const next=prompt('Enter next follow-up date (YYYY-MM-DD):',l.followup||localDateISO());
-  if(!next)return;
-  if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(next)){
+
+  const input=prompt(
+    'Enter next follow-up date (YYYY-MM-DD):',
+    l.followup||localDateISO()
+  );
+  if(input===null)return;
+
+  const next=String(input).trim();
+
+  // Validate both the format and the actual calendar date.
+  const match=next.match(/^(\\d{4})-(\\d{2})-(\\d{2})$/);
+  if(!match){
     alert('Use date format YYYY-MM-DD.');
     return;
   }
-  addFollowupHistory(l,'Rescheduled','New date: '+next);
+
+  const year=Number(match[1]);
+  const month=Number(match[2]);
+  const day=Number(match[3]);
+  const check=new Date(year,month-1,day);
+
+  if(
+    check.getFullYear()!==year ||
+    check.getMonth()!==month-1 ||
+    check.getDate()!==day
+  ){
+    alert('Please enter a valid calendar date.');
+    return;
+  }
+
+  const oldDate=l.followup||'';
+  if(oldDate) addFollowupHistory(l,'Rescheduled','New date: '+next);
+
   l.followup=next;
   l.updated=new Date().toISOString();
+
   save();
   renderAll();
 }
