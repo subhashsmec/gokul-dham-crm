@@ -549,6 +549,7 @@ table{width:100%;border-collapse:collapse}
     <div class="field"><label>Token / Booking Amount (₹)</label><input id="tokenAmount" type="number" min="0"></div>
 
     <div class="field"><label>Booking Date</label><input id="bookingDate" type="date"></div>
+    <div class="field"><label>Deal Plot No(s.)</label><input id="dealPlotNumbers" placeholder="e.g. 261 or 261, 262"></div>
     <div class="field"><label>Payment Status</label>
       <select id="paymentStatus"><option>Not Started</option><option>Token Pending</option><option>Token Paid</option><option>Part Payment</option><option>Fully Paid</option></select>
     </div>
@@ -597,6 +598,7 @@ db.leads.forEach(l=>{
   if(l.dealPrice==null)l.dealPrice=0;
   if(l.tokenAmount==null)l.tokenAmount=0;
   if(l.bookingDate==null)l.bookingDate='';
+  if(l.dealPlotNumbers==null)l.dealPlotNumbers='';
   if(l.paymentStatus==null)l.paymentStatus='Not Started';
   if(l.dealNotes==null)l.dealNotes='';
 });
@@ -659,8 +661,12 @@ function openLead(id=''){
     if(!l)return;
     ['name','mobile','category','location','budget','size','source','status','priority','preference','followup','siteVisitDate','siteVisitTime','dealPrice','tokenAmount','bookingDate','paymentStatus','dealNotes','notes']
       .forEach(k=>$(k).value=l[k]??'');
+    const linkedPlotNumbers=db.plots
+      .filter(p=>getPlotLeadIds(p).includes(l.id))
+      .map(p=>p.number);
+    $('dealPlotNumbers').value=l.dealPlotNumbers||linkedPlotNumbers.join(', ');
   }else{
-    ['name','mobile','budget','size','preference','followup','siteVisitDate','siteVisitTime','dealPrice','tokenAmount','bookingDate','dealNotes','notes'].forEach(k=>$(k).value='');
+    ['name','mobile','budget','size','preference','followup','siteVisitDate','siteVisitTime','dealPrice','tokenAmount','bookingDate','dealPlotNumbers','dealNotes','notes'].forEach(k=>$(k).value='');
     $('paymentStatus').value='Not Started';
     $('source').value='Facebook';
     $('status').value='New';
@@ -673,6 +679,38 @@ function openLead(id=''){
   setTimeout(()=>$('name').focus(),100);
 }
 
+function normalizeDealPlotNumbers(value){
+  return [...new Set(
+    String(value||'')
+      .split(',')
+      .map(x=>x.trim())
+      .filter(Boolean)
+  )];
+}
+
+function syncDealPlotsForLead(l){
+  const numbers=normalizeDealPlotNumbers(l.dealPlotNumbers);
+  const wanted=new Set(numbers.map(x=>x.toLowerCase()));
+
+  db.plots.forEach(p=>{
+    const ids=getPlotLeadIds(p);
+    if(ids.includes(l.id) && !wanted.has(String(p.number||'').toLowerCase())){
+      p.linkedLeadIds=ids.filter(id=>id!==l.id);
+      if(p.leadId===l.id)p.leadId=p.linkedLeadIds[0]||'';
+      p.updated=new Date().toISOString();
+    }
+  });
+
+  for(const number of numbers){
+    const p=db.plots.find(x=>String(x.number||'').toLowerCase()===number.toLowerCase());
+    if(!p) continue;
+    if(!Array.isArray(p.linkedLeadIds))p.linkedLeadIds=p.leadId?[p.leadId]:[];
+    if(!p.linkedLeadIds.includes(l.id))p.linkedLeadIds.push(l.id);
+    if(!p.leadId)p.leadId=l.id;
+    p.updated=new Date().toISOString();
+  }
+}
+
 function saveLead(e){
   e.preventDefault();
 
@@ -683,11 +721,23 @@ function saveLead(e){
   const selectedToken=Number($('tokenAmount').value||0);
   const selectedBookingDate=$('bookingDate').value;
   const selectedPayment=$('paymentStatus').value;
+  const selectedPlotNumbers=normalizeDealPlotNumbers($('dealPlotNumbers').value);
 
   if(selectedStatus==='Booking'){
     if(selectedDealPrice<=0){ alert('Booking ke liye Deal / Final Price enter karein.'); $('dealPrice').focus(); return; }
     if(selectedToken<0){ alert('Token / Booking Amount valid enter karein.'); $('tokenAmount').focus(); return; }
     if(!selectedBookingDate){ alert('Booking Date enter karein.'); $('bookingDate').focus(); return; }
+    if(!selectedPlotNumbers.length){
+      alert('Booking ke liye Deal Plot No(s.) enter karein.');
+      $('dealPlotNumbers').focus();
+      return;
+    }
+    const missing=selectedPlotNumbers.filter(n=>!db.plots.some(p=>String(p.number||'').toLowerCase()===n.toLowerCase()));
+    if(missing.length){
+      alert('Ye Plot No CRM ke Plots me nahi mile: '+missing.join(', ')+'\nPehle Plots section me exact plot number add karein.');
+      $('dealPlotNumbers').focus();
+      return;
+    }
     if(selectedPayment==='Not Started'){
       alert('Booking ke liye Payment Status select karein.'); $('paymentStatus').focus(); return;
     }
@@ -715,6 +765,7 @@ function saveLead(e){
     dealPrice:Number($('dealPrice').value||0),
     tokenAmount:Number($('tokenAmount').value||0),
     bookingDate:$('bookingDate').value,
+    dealPlotNumbers:normalizeDealPlotNumbers($('dealPlotNumbers').value).join(', '),
     paymentStatus:$('paymentStatus').value,
     dealNotes:$('dealNotes').value.trim(),
     notes:$('notes').value.trim(),
@@ -747,6 +798,7 @@ function saveLead(e){
     pendingPlotLinkId='';
   }
 
+  syncDealPlotsForLead(l);
   syncLinkedPlotsForLead(l, old?.status||'');
   save();
   leadDlg.close();
@@ -889,6 +941,7 @@ function leadHTML(l){
     </div>
 
     ${l.preference?`<div class="muted">Preference: ${esc(l.preference)}</div>`:''}
+    ${l.dealPlotNumbers?`<div style="margin-top:7px"><b>🎯 Deal Plot No(s.):</b> ${esc(l.dealPlotNumbers)}</div>`:''}
     ${l.notes?`<div style="margin-top:7px">${esc(l.notes)}</div>`:''}
     ${statusActionButtons(l)}
     ${(l.siteVisitDate||l.dealPrice||l.tokenAmount||l.bookingDate||l.dealNotes)?`<div class="deal-box"><b>Site Visit / Deal</b><div class="deal-grid">
@@ -1052,7 +1105,7 @@ function renderReports(){
 }
 
 function exportCSV(){
-  const cols=['name','mobile','category','location','budget','size','source','status','priority','preference','followup','siteVisitDate','siteVisitTime','dealPrice','tokenAmount','bookingDate','paymentStatus','dealNotes','notes'];
+  const cols=['name','mobile','category','location','budget','size','source','status','priority','preference','followup','siteVisitDate','siteVisitTime','dealPrice','tokenAmount','bookingDate','dealPlotNumbers','paymentStatus','dealNotes','notes'];
   const csv=[
     cols.join(','),
     ...db.leads.map(l=>cols.map(k=>`"${String(l[k]??'').replaceAll('"','""')}"`).join(','))
@@ -1119,6 +1172,7 @@ function openPlotDetails(id){
       </div>
       <div class="muted" style="margin-top:6px">
         Budget: ${l.budget?money(l.budget):'Not set'} · Required: ${l.size?esc(l.size)+' Sq.Yd.':'Not set'}
+        ${l.dealPlotNumbers?` · Deal Plot: ${esc(l.dealPlotNumbers)}`:''}
       </div>
       ${l.notes?`<div style="margin-top:6px">${esc(l.notes)}</div>`:''}
       <div class="linked-customer-actions">
