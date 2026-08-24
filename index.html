@@ -246,13 +246,19 @@ table{width:100%;border-collapse:collapse}
 @media(max-width:500px){.deal-grid{grid-template-columns:1fr}}
 @media(max-width:800px){.pipeline-grid{grid-template-columns:repeat(2,minmax(140px,1fr))}}
 @media(max-width:500px){.pipeline-grid{grid-template-columns:1fr}}
+
+/* Step 11 - Payment & Sold Control */
+.payment-summary{margin-top:8px;padding:10px;border:1px solid var(--line);border-radius:10px;background:#f8fafc}
+.payment-summary .pay-ok{font-weight:700}
+.payment-summary .pay-due{font-weight:700}
+.sold-stamp{display:inline-block;margin-left:6px;padding:3px 7px;border-radius:999px;background:#dcfae6;color:#067647;font-size:11px;font-weight:700}
 </style>
 </head>
 
 <body>
 <header>
   <h1>Gokul Dham CRM</h1>
-  <small>Sector-13, Hansi · Free offline-first · Step 9 Booking & Closing Control</small>
+  <small>Sector-13, Hansi · Free offline-first · Step 11 Payment & Sold Control</small>
 </header>
 
 <main>
@@ -549,10 +555,18 @@ table{width:100%;border-collapse:collapse}
     <div class="field"><label>Token / Booking Amount (₹)</label><input id="tokenAmount" type="number" min="0"></div>
 
     <div class="field"><label>Booking Date</label><input id="bookingDate" type="date"></div>
-    <div class="field"><label>Deal Plot No(s.)</label><input id="dealPlotNumbers" placeholder="e.g. 261 or 261, 262"></div>
+    <div class="field"><label>Deal Plot No(s.) *</label><input id="dealPlotNumbers" placeholder="e.g. 261 or 261, 262"></div>
     <div class="field"><label>Payment Status</label>
       <select id="paymentStatus"><option>Not Started</option><option>Token Pending</option><option>Token Paid</option><option>Part Payment</option><option>Fully Paid</option></select>
     </div>
+
+    <div class="field"><label>Total Paid Amount (₹)</label><input id="paidAmount" type="number" min="0" value="0"></div>
+    <div class="field"><label>Remaining Amount (₹)</label><input id="remainingAmount" type="number" readonly></div>
+    <div class="field"><label>Last Payment Date</label><input id="lastPaymentDate" type="date"></div>
+    <div class="field"><label>Payment Mode</label>
+      <select id="paymentMode"><option>Cash</option><option>UPI</option><option>Bank Transfer</option><option>Cheque</option><option>Other</option></select>
+    </div>
+    <div class="field"><label>Sold / Closed Date</label><input id="soldDate" type="date"></div>
 
     <div class="field" style="grid-column:1/-1"><label>Site Visit / Deal Notes</label><textarea id="dealNotes" placeholder="Visit result, negotiation, token, booking or payment details..."></textarea></div>
     <div class="field" style="grid-column:1/-1"><label>Notes</label><textarea id="notes" placeholder="Conversation, requirement, next action..."></textarea></div>
@@ -600,6 +614,10 @@ db.leads.forEach(l=>{
   if(l.bookingDate==null)l.bookingDate='';
   if(l.dealPlotNumbers==null)l.dealPlotNumbers='';
   if(l.paymentStatus==null)l.paymentStatus='Not Started';
+  if(l.paidAmount==null)l.paidAmount=(l.paymentStatus==='Fully Paid'?Number(l.dealPrice||0):0);
+  if(l.lastPaymentDate==null)l.lastPaymentDate=l.bookingDate||'';
+  if(l.paymentMode==null)l.paymentMode='Cash';
+  if(l.soldDate==null)l.soldDate='';
   if(l.dealNotes==null)l.dealNotes='';
 });
 db.plots.forEach(p=>{ if(p.status==null)p.status='Available'; });
@@ -608,6 +626,11 @@ const $=id=>document.getElementById(id);
 function save(){localStorage.setItem(KEY,JSON.stringify(db))}
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
 function money(n){return '₹'+Number(n||0).toLocaleString('en-IN')}
+function updateRemainingAmount(){
+  const deal=Number($('dealPrice')?.value||0);
+  const paid=Number($('paidAmount')?.value||0);
+  if($('remainingAmount'))$('remainingAmount').value=Math.max(0,deal-paid);
+}
 
 function esc(s){
   return String(s??'').replace(/[&<>"']/g,m=>({
@@ -659,15 +682,17 @@ function openLead(id=''){
   if(id){
     const l=db.leads.find(x=>x.id===id);
     if(!l)return;
-    ['name','mobile','category','location','budget','size','source','status','priority','preference','followup','siteVisitDate','siteVisitTime','dealPrice','tokenAmount','bookingDate','paymentStatus','dealNotes','notes']
+    ['name','mobile','category','location','budget','size','source','status','priority','preference','followup','siteVisitDate','siteVisitTime','dealPrice','tokenAmount','bookingDate','paymentStatus','paidAmount','lastPaymentDate','paymentMode','soldDate','dealNotes','notes']
       .forEach(k=>$(k).value=l[k]??'');
+    updateRemainingAmount();
     const linkedPlotNumbers=db.plots
       .filter(p=>getPlotLeadIds(p).includes(l.id))
       .map(p=>p.number);
     $('dealPlotNumbers').value=l.dealPlotNumbers||linkedPlotNumbers.join(', ');
   }else{
-    ['name','mobile','budget','size','preference','followup','siteVisitDate','siteVisitTime','dealPrice','tokenAmount','bookingDate','dealPlotNumbers','dealNotes','notes'].forEach(k=>$(k).value='');
+    ['name','mobile','budget','size','preference','followup','siteVisitDate','siteVisitTime','dealPrice','tokenAmount','bookingDate','dealPlotNumbers','paidAmount','remainingAmount','lastPaymentDate','soldDate','dealNotes','notes'].forEach(k=>$(k).value='');
     $('paymentStatus').value='Not Started';
+    $('paymentMode').value='Cash';
     $('source').value='Facebook';
     $('status').value='New';
     $('priority').value='Warm';
@@ -721,7 +746,12 @@ function saveLead(e){
   const selectedToken=Number($('tokenAmount').value||0);
   const selectedBookingDate=$('bookingDate').value;
   const selectedPayment=$('paymentStatus').value;
+  const selectedPaid=Number($('paidAmount').value||0);
+  const selectedLastPaymentDate=$('lastPaymentDate').value;
+  const selectedPaymentMode=$('paymentMode').value;
+  const selectedSoldDate=$('soldDate').value;
   const selectedPlotNumbers=normalizeDealPlotNumbers($('dealPlotNumbers').value);
+  if(selectedPaid<0 || selectedPaid>selectedDealPrice){ alert('Total Paid Amount Deal Price se zyada nahi ho sakta.'); $('paidAmount').focus(); return; }
 
   if(selectedStatus==='Booking'){
     if(selectedDealPrice<=0){ alert('Booking ke liye Deal / Final Price enter karein.'); $('dealPrice').focus(); return; }
@@ -741,10 +771,13 @@ function saveLead(e){
     if(selectedPayment==='Not Started'){
       alert('Booking ke liye Payment Status select karein.'); $('paymentStatus').focus(); return;
     }
+    if(selectedPayment==='Fully Paid' && selectedPaid < selectedDealPrice){
+      alert('Fully Paid ke liye Total Paid Amount = Deal Price hona chahiye.'); $('paidAmount').focus(); return;
+    }
   }
   if(selectedStatus==='Closed'){
     if(selectedDealPrice<=0){ alert('Closed ke liye Deal / Final Price required hai.'); $('dealPrice').focus(); return; }
-    if(selectedPayment!=='Fully Paid'){ alert('Closed / Sold ke liye Payment Status = Fully Paid hona chahiye.'); $('paymentStatus').focus(); return; }
+    if(selectedPayment!=='Fully Paid' || selectedPaid < selectedDealPrice){ alert('Closed / Sold ke liye Payment Status = Fully Paid aur Total Paid = Deal Price hona chahiye.'); $('paymentStatus').focus(); return; }
   }
 
   const l={
@@ -767,6 +800,10 @@ function saveLead(e){
     bookingDate:$('bookingDate').value,
     dealPlotNumbers:normalizeDealPlotNumbers($('dealPlotNumbers').value).join(', '),
     paymentStatus:$('paymentStatus').value,
+    paidAmount:selectedPaid,
+    lastPaymentDate:selectedLastPaymentDate,
+    paymentMode:selectedPaymentMode,
+    soldDate:selectedStatus==='Closed' ? (selectedSoldDate||localDateISO()) : selectedSoldDate,
     dealNotes:$('dealNotes').value.trim(),
     notes:$('notes').value.trim(),
     followupHistory:Array.isArray(old?.followupHistory)?old.followupHistory:[],
@@ -834,7 +871,7 @@ function syncLinkedPlotsForLead(l, previousStatus=''){
     if(l.status==='Closed'){
       p.status='Sold';
       p.soldLeadId=l.id;
-      p.soldDate=l.bookingDate||localDateISO();
+      p.soldDate=l.soldDate||l.bookingDate||localDateISO();
     }
     // If a booked lead is moved back before closing, release only the hold created for this lead.
     if(!['Booking','Closed'].includes(l.status) && previousStatus==='Booking' && p.status==='Hold' && p.holdLeadId===l.id){
@@ -876,11 +913,12 @@ function changeLeadStatus(id,nextStatus){
       alert('Closed karne se pehle Deal / Final Price enter karein.');
       openLead(id); return;
     }
-    if(l.paymentStatus!=='Fully Paid'){
-      alert('Closed karne se pehle Payment Status = Fully Paid karein.');
+    if(l.paymentStatus!=='Fully Paid' || Number(l.paidAmount||0)<Number(l.dealPrice||0)){
+      alert('Closed karne se pehle Payment Status = Fully Paid aur Total Paid = Deal Price karein.');
       openLead(id); return;
     }
     if(!l.bookingDate)l.bookingDate=localDateISO();
+    if(!l.soldDate)l.soldDate=localDateISO();
   }
 
   l.status=nextStatus;
@@ -906,7 +944,7 @@ function statusActionButtons(l){
     if(next==='Booking'){
       buttons.push(`<button onclick="prepareBooking('${l.id}')">→ Booking</button>`);
     }else if(next==='Closed'){
-      const canClose = l.paymentStatus==='Fully Paid' && Number(l.dealPrice||0)>0;
+      const canClose = l.paymentStatus==='Fully Paid' && Number(l.dealPrice||0)>0 && Number(l.paidAmount||0)>=Number(l.dealPrice||0);
        buttons.push(`<button ${canClose?'':'disabled title="Deal Price and Fully Paid payment required"'} onclick="changeLeadStatus('${l.id}','Closed')">→ Closed / Sold</button>`);
     }else if(next!=='Lost'){
       buttons.push(`<button onclick="changeLeadStatus('${l.id}','${esc(next)}')">→ ${esc(next)}</button>`);
@@ -950,9 +988,15 @@ function leadHTML(l){
       <div class="deal-item"><div class="deal-label">Booking/Token</div><div class="deal-value">${l.tokenAmount?money(l.tokenAmount):'Not set'}</div></div>
       <div class="deal-item"><div class="deal-label">Booking Date</div><div class="deal-value">${esc(l.bookingDate||'Not set')}</div></div>
       <div class="deal-item"><div class="deal-label">Payment</div><div class="deal-value">${esc(l.paymentStatus||'Not Started')}</div></div>
-    </div>${l.dealNotes?`<div class="muted" style="margin-top:8px">${esc(l.dealNotes)}</div>`:''}</div>`:''}
-    ${l.status==='Booking'?`<div class="muted" style="margin-top:8px"><b>🔒 Booking:</b> Plot is on Hold. ${l.paymentStatus==='Fully Paid'&&Number(l.dealPrice||0)>0?'✅ Closed / Sold is now enabled.':'🔐 Closed / Sold unlocks only after Deal Price is set and Payment = Fully Paid.'}</div>`:''}
-    ${l.status==='Closed'?`<div class="muted" style="margin-top:8px"><b>✅ Closed:</b> Plot is marked Sold.</div>`:''}
+      <div class="deal-item"><div class="deal-label">Paid</div><div class="deal-value">${money(l.paidAmount||0)}</div></div>
+      <div class="deal-item"><div class="deal-label">Remaining</div><div class="deal-value">${money(Math.max(0,Number(l.dealPrice||0)-Number(l.paidAmount||0)))}</div></div>
+      <div class="deal-item"><div class="deal-label">Last Payment</div><div class="deal-value">${esc(l.lastPaymentDate||'Not set')}${l.paymentMode?' · '+esc(l.paymentMode):''}</div></div>
+      ${l.soldDate?`<div class="deal-item"><div class="deal-label">Sold Date</div><div class="deal-value">${esc(l.soldDate)}</div></div>`:''}
+    </div>
+    <div class="payment-summary"><span class="pay-ok">Paid: ${money(l.paidAmount||0)}</span> · <span class="pay-due">Balance: ${money(Math.max(0,Number(l.dealPrice||0)-Number(l.paidAmount||0)))}</span></div>
+    ${l.dealNotes?`<div class="muted" style="margin-top:8px">${esc(l.dealNotes)}</div>`:''}</div>`:''}
+    ${l.status==='Booking'?`<div class="muted" style="margin-top:8px"><b>🔒 Booking:</b> Plot is on Hold. ${l.paymentStatus==='Fully Paid'&&Number(l.paidAmount||0)>=Number(l.dealPrice||0)&&Number(l.dealPrice||0)>0?'✅ Closed / Sold is now enabled.':'🔐 Closed / Sold unlocks only after Deal Price is set and Total Paid = Deal Price.'}</div>`:''}
+    ${l.status==='Closed'?`<div class="muted" style="margin-top:8px"><b>✅ Closed / SOLD:</b> Plot is marked Sold.<span class="sold-stamp">PAID</span></div>`:''}
     ${l.followup?`<div class="muted" style="margin-top:7px"><b>Next Follow-up:</b> ${esc(l.followup)}</div>`:''}
     ${(() => {
       const pls=db.plots.filter(p=>(p.linkedLeadIds||[]).includes(l.id)||p.leadId===l.id);
@@ -1092,8 +1136,10 @@ function renderReports(){
 
   const dealPriceTotal=db.leads.reduce((sum,l)=>sum+Number(l.dealPrice||0),0);
   const tokenTotal=db.leads.reduce((sum,l)=>sum+Number(l.tokenAmount||0),0);
+  const paidTotal=db.leads.reduce((sum,l)=>sum+Number(l.paidAmount||0),0);
+  const balanceTotal=db.leads.reduce((sum,l)=>sum+Math.max(0,Number(l.dealPrice||0)-Number(l.paidAmount||0)),0);
   $('reportBox').innerHTML=
-    `<h3>Sales Summary</h3><p><b>Negotiation:</b> ${db.leads.filter(x=>x.status==='Negotiation').length} · <b>Booking:</b> ${db.leads.filter(x=>x.status==='Booking').length} · <b>Closed:</b> ${db.leads.filter(x=>x.status==='Closed').length}</p><p><b>Total Deal Value:</b> ${money(dealPriceTotal)} · <b>Total Token/Booking:</b> ${money(tokenTotal)}</p><h3>Plot Summary</h3><p><b>Total plot records:</b> ${db.plots.length}</p><p><b>Available:</b> ${db.plots.filter(x=>x.status==='Available').length} · <b>Hold:</b> ${db.plots.filter(x=>x.status==='Hold').length} · <b>Sold:</b> ${db.plots.filter(x=>x.status==='Sold').length}</p><h3>Location Report</h3>`+
+    `<h3>Sales Summary</h3><p><b>Negotiation:</b> ${db.leads.filter(x=>x.status==='Negotiation').length} · <b>Booking:</b> ${db.leads.filter(x=>x.status==='Booking').length} · <b>Closed:</b> ${db.leads.filter(x=>x.status==='Closed').length}</p><p><b>Total Deal Value:</b> ${money(dealPriceTotal)} · <b>Total Token/Booking:</b> ${money(tokenTotal)}</p><p><b>Total Paid:</b> ${money(paidTotal)} · <b>Total Balance:</b> ${money(balanceTotal)}</p><h3>Plot Summary</h3><p><b>Total plot records:</b> ${db.plots.length}</p><p><b>Available:</b> ${db.plots.filter(x=>x.status==='Available').length} · <b>Hold:</b> ${db.plots.filter(x=>x.status==='Hold').length} · <b>Sold:</b> ${db.plots.filter(x=>x.status==='Sold').length}</p><h3>Location Report</h3>`+
     (byLoc.length?
       byLoc.map(x=>`<p><b>${esc(x[0])}</b>: ${x[1]}</p>`).join(''):
       '<p class="muted">No data</p>')+
@@ -1105,7 +1151,7 @@ function renderReports(){
 }
 
 function exportCSV(){
-  const cols=['name','mobile','category','location','budget','size','source','status','priority','preference','followup','siteVisitDate','siteVisitTime','dealPrice','tokenAmount','bookingDate','dealPlotNumbers','paymentStatus','dealNotes','notes'];
+  const cols=['name','mobile','category','location','budget','size','source','status','priority','preference','followup','siteVisitDate','siteVisitTime','dealPrice','tokenAmount','bookingDate','dealPlotNumbers','paymentStatus','paidAmount','remainingAmount','lastPaymentDate','paymentMode','soldDate','dealNotes','notes'];
   const csv=[
     cols.join(','),
     ...db.leads.map(l=>cols.map(k=>`"${String(l[k]??'').replaceAll('"','""')}"`).join(','))
@@ -1899,6 +1945,15 @@ function setupMap(){
 
   updateMap();
 }
+$('dealPrice').addEventListener('input',updateRemainingAmount);
+$('paidAmount').addEventListener('input',updateRemainingAmount);
+$('paymentStatus').addEventListener('change',()=>{
+  if($('paymentStatus').value==='Fully Paid' && Number($('dealPrice').value||0)>0){
+    $('paidAmount').value=Number($('dealPrice').value||0);
+    if(!$('lastPaymentDate').value)$('lastPaymentDate').value=localDateISO();
+  }
+  updateRemainingAmount();
+});
 init();
 </script>
 
