@@ -212,6 +212,19 @@ table{width:100%;border-collapse:collapse}
 .history{margin-top:12px;border-top:1px solid var(--line);padding-top:10px}
 .history-item{font-size:12px;padding:7px 0;border-bottom:1px dashed var(--line)}
 @media(max-width:800px){.followup-grid{grid-template-columns:1fr}}
+
+.activity-box{margin-top:14px;border-top:1px solid var(--line);padding-top:12px}
+.activity-form{display:grid;grid-template-columns:140px 1fr auto;gap:8px;align-items:end}
+.activity-list{margin-top:10px}
+.activity-item{display:flex;justify-content:space-between;gap:10px;border:1px solid var(--line);border-radius:10px;padding:10px;margin-top:7px;background:#fff}
+.activity-main{min-width:0}
+.activity-action{font-weight:800}
+.activity-meta{font-size:11px;color:var(--muted);margin-top:3px}
+.activity-note{margin-top:5px;white-space:pre-wrap;word-break:break-word}
+.activity-quick{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.activity-quick button{padding:7px 9px;font-size:12px}
+.activity-empty{padding:10px;color:var(--muted);font-size:13px}
+@media(max-width:600px){.activity-form{grid-template-columns:1fr}.activity-item{flex-direction:column}}
 </style>
 </head>
 
@@ -432,6 +445,46 @@ table{width:100%;border-collapse:collapse}
   <button onclick="show('reports')">Reports</button>
 </nav>
 
+<dialog id="leadActivityDlg" class="plotdetail-dialog">
+  <div class="plotdetail-body">
+    <div class="plotdetail-head">
+      <div>
+        <h2 id="activityLeadTitle" class="plotdetail-title">Lead Activity</h2>
+        <div id="activityLeadMeta" class="muted"></div>
+      </div>
+      <button type="button" class="secondary" onclick="closeLeadActivity()">✕</button>
+    </div>
+
+    <div class="activity-box">
+      <form class="activity-form" onsubmit="submitActivityForm(event)">
+        <input type="hidden" id="activityLeadId">
+        <label>Activity
+          <select id="activityAction">
+            <option>Call</option>
+            <option>WhatsApp</option>
+            <option>Site Visit</option>
+            <option>Meeting</option>
+            <option>Payment</option>
+            <option>Note</option>
+            <option>Other</option>
+          </select>
+        </label>
+        <label>Note
+          <input id="activityNote" placeholder="What happened?">
+        </label>
+        <button type="submit">+ Add Activity</button>
+      </form>
+
+      <div id="activityQuick" class="activity-quick"></div>
+      <div id="activityList" class="activity-list"></div>
+    </div>
+
+    <div class="actions" style="margin-top:14px">
+      <button class="secondary" onclick="closeLeadActivity()">Close</button>
+    </div>
+  </div>
+</dialog>
+
 <dialog id="leadDlg" class="dialog">
 <form method="dialog" class="dlgbody" onsubmit="saveLead(event)">
   <div class="dlghead">
@@ -504,6 +557,7 @@ db.plots.forEach(p=>{
 });
 db.leads.forEach(l=>{
   if(!Array.isArray(l.followupHistory))l.followupHistory=[];
+  if(!Array.isArray(l.activities))l.activities=[];
 });
 const $=id=>document.getElementById(id);
 
@@ -663,11 +717,13 @@ function leadHTML(l){
       return pls.length?`<div class="muted" style="margin-top:7px"><b>Linked Plots:</b> ${pls.map(p=>esc(p.number)).join(', ')}</div>`:'';
     })()}
     ${Array.isArray(l.followupHistory)&&l.followupHistory.length?`<div class="history"><b>Follow-up History</b>${l.followupHistory.slice(0,3).map(h=>`<div class="history-item">${esc(h.action)} · ${esc(h.date||'')} ${h.note?'· '+esc(h.note):''}</div>`).join('')}</div>`:''}
+    ${Array.isArray(l.activities)&&l.activities.length?`<div class="history"><b>Recent Activity</b>${l.activities.slice(0,3).map(a=>`<div class="history-item">${esc(a.action)} · ${esc(activityDate(a.at))}${a.note?' · '+esc(a.note):''}</div>`).join('')}</div>`:''}
 
     <div class="actions">
       <button onclick="openLead('${l.id}')">Edit</button>
       <button class="call" onclick="callLead('${esc(l.mobile)}')">Call</button>
       <button class="wa" onclick="waLead('${esc(l.mobile)}')">WhatsApp</button>
+      <button onclick="showLeadActivity('${l.id}')">📋 Activity</button>
       ${l.followup?`<button onclick="completeFollowup('${l.id}')">✓ Done</button><button class="secondary" onclick="rescheduleFollowup('${l.id}')">Reschedule</button>`:''}
       <button class="danger" onclick="delLead('${l.id}')">Delete</button>
     </div>
@@ -863,6 +919,7 @@ function openPlotDetails(id){
       <div class="linked-customer-actions">
         ${l.mobile?`<a class="call" href="tel:${esc(tel)}">📞 Call</a>`:''}
         ${wa?`<a class="wa" href="https://wa.me/${wa}" target="_blank" rel="noopener">💬 WhatsApp</a>`:''}
+        <button type="button" onclick="showLeadActivity('${l.id}')">📋 Activity</button>
         <button type="button" onclick="closePlotDetails();openLead('${l.id}')">✏️ Edit Lead</button>
         ${l.followup?`<button type="button" onclick="completeFollowup('${l.id}');openPlotDetails('${p.id}')">✓ Follow-up Done</button>`:''}
         <button type="button" class="danger" onclick="unlinkLeadFromPlot('${p.id}','${l.id}')">Unlink</button>
@@ -1102,6 +1159,80 @@ function renderPlots(){
 }
 
 
+
+
+function addActivity(leadId,action,note=''){
+  const l=db.leads.find(x=>x.id===leadId);
+  if(!l)return;
+  if(!Array.isArray(l.activities))l.activities=[];
+  l.activities.unshift({
+    id:uid(),
+    at:new Date().toISOString(),
+    action:String(action||'Note'),
+    note:String(note||'')
+  });
+  l.activities=l.activities.slice(0,100);
+  l.updated=new Date().toISOString();
+  save();
+  renderAll();
+}
+function activityDate(at){
+  try{
+    return new Date(at).toLocaleString('en-IN',{
+      day:'2-digit',month:'short',year:'numeric',
+      hour:'2-digit',minute:'2-digit'
+    });
+  }catch(e){return at||'';}
+}
+function addActivityFromLead(id,action){
+  const note=prompt('Enter note (optional):','');
+  if(note===null)return;
+  addActivity(id,action,note);
+}
+function showLeadActivity(id){
+  const l=db.leads.find(x=>x.id===id);
+  if(!l)return;
+  if(!Array.isArray(l.activities))l.activities=[];
+  const history=l.activities.length
+    ? l.activities.map(a=>`
+      <div class="activity-item">
+        <div class="activity-main">
+          <div class="activity-action">${esc(a.action)}</div>
+          <div class="activity-meta">${esc(activityDate(a.at))}</div>
+          ${a.note?`<div class="activity-note">${esc(a.note)}</div>`:''}
+        </div>
+      </div>`).join('')
+    : '<div class="activity-empty">No activity recorded yet.</div>';
+
+  const dlg=$('leadActivityDlg');
+  if(!dlg){
+    alert('Activity window is not available.');
+    return;
+  }
+  $('activityLeadTitle').textContent=`Activity — ${l.name}`;
+  $('activityLeadMeta').textContent=`${l.mobile||''} · ${l.status||''} · ${l.followup?'Next follow-up: '+l.followup:'No follow-up'}`;
+  $('activityQuick').innerHTML=`
+    <button onclick="addActivityFromLead('${l.id}','Call')">📞 Call</button>
+    <button onclick="addActivityFromLead('${l.id}','WhatsApp')">💬 WhatsApp</button>
+    <button onclick="addActivityFromLead('${l.id}','Site Visit')">📍 Site Visit</button>
+    <button onclick="addActivityFromLead('${l.id}','Note')">📝 Note</button>`;
+  $('activityList').innerHTML=history;
+  if(dlg.showModal)dlg.showModal();else dlg.setAttribute('open','');
+}
+function closeLeadActivity(){
+  const dlg=$('leadActivityDlg');
+  if(dlg&&dlg.open)dlg.close();
+}
+function submitActivityForm(e){
+  e.preventDefault();
+  const id=$('activityLeadId').value;
+  const action=$('activityAction').value;
+  const note=$('activityNote').value.trim();
+  if(!id)return;
+  addActivity(id,action,note);
+  $('activityNote').value='';
+  showLeadActivity(id);
+}
 
 function addFollowupHistory(l,action,note=''){
   if(!Array.isArray(l.followupHistory))l.followupHistory=[];
