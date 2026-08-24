@@ -225,6 +225,19 @@ table{width:100%;border-collapse:collapse}
 .activity-quick button{padding:7px 9px;font-size:12px}
 .activity-empty{padding:10px;color:var(--muted);font-size:13px}
 @media(max-width:600px){.activity-form{grid-template-columns:1fr}.activity-item{flex-direction:column}}
+
+.pipeline-grid{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:10px}
+.pipeline-stage{border:1px solid var(--line);border-radius:12px;padding:12px;background:#fff}
+.pipeline-stage-head{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.pipeline-stage-name{font-weight:800}
+.pipeline-count{font-size:22px;font-weight:900;color:var(--brand)}
+.pipeline-bar{height:7px;background:#eef2f6;border-radius:99px;overflow:hidden;margin-top:9px}
+.pipeline-bar>span{display:block;height:100%;background:var(--brand);border-radius:99px}
+.pipeline-stage-list{margin-top:8px;font-size:12px;color:var(--muted)}
+.status-actions{display:flex;gap:5px;flex-wrap:wrap;margin-top:9px}
+.status-actions button{font-size:11px;padding:6px 8px}
+@media(max-width:800px){.pipeline-grid{grid-template-columns:repeat(2,minmax(140px,1fr))}}
+@media(max-width:500px){.pipeline-grid{grid-template-columns:1fr}}
 </style>
 </head>
 
@@ -545,7 +558,7 @@ const LOCATIONS=[
 
 const STATUSES=[
   'New','Contacted','Interested','Site Visit',
-  'Negotiation','Closed','Lost'
+  'Negotiation','Booking','Closed','Lost'
 ];
 
 let db=JSON.parse(localStorage.getItem(KEY)||'{"leads":[],"plots":[]}');
@@ -655,7 +668,20 @@ function saveLead(e){
 
   if(id){
     const i=db.leads.findIndex(x=>x.id===id);
-    if(i>=0)db.leads[i]=l;
+    if(i>=0){
+      const previous=db.leads[i];
+      if(previous.status!==l.status){
+        if(!Array.isArray(l.activities))l.activities=[];
+        l.activities.unshift({
+          id:uid(),
+          at:new Date().toISOString(),
+          action:'Status Changed',
+          note:`${previous.status||'New'} → ${l.status}`
+        });
+        l.activities=l.activities.slice(0,100);
+      }
+      db.leads[i]=l;
+    }
   }else{
     db.leads.unshift(l);
   }
@@ -689,6 +715,47 @@ function score(l){
     (l.budget?15:0)+(l.size?10:0)
 }
 
+
+function changeLeadStatus(id,nextStatus){
+  const l=db.leads.find(x=>x.id===id);
+  if(!l || !STATUSES.includes(nextStatus))return;
+  const oldStatus=l.status||'New';
+  if(oldStatus===nextStatus)return;
+
+  l.status=nextStatus;
+  l.updated=new Date().toISOString();
+
+  if(!Array.isArray(l.activities))l.activities=[];
+  l.activities.unshift({
+    id:uid(),
+    at:new Date().toISOString(),
+    action:'Status Changed',
+    note:`${oldStatus} → ${nextStatus}`
+  });
+  l.activities=l.activities.slice(0,100);
+
+  save();
+  renderAll();
+  renderMapPlotMarkers();
+}
+
+function statusActionButtons(l){
+  const current=STATUSES.indexOf(l.status);
+  const buttons=[];
+  if(current>=0 && current<STATUSES.length-1){
+    const next=STATUSES[current+1];
+    if(next!=='Lost'){
+      buttons.push(`<button onclick="changeLeadStatus('${l.id}','${esc(next)}')">→ ${esc(next)}</button>`);
+    }
+  }
+  if(l.status!=='Lost'){
+    buttons.push(`<button class="secondary" onclick="changeLeadStatus('${l.id}','Lost')">✕ Lost</button>`);
+  }else{
+    buttons.push(`<button onclick="changeLeadStatus('${l.id}','New')">↩ Reopen</button>`);
+  }
+  return `<div class="status-actions">${buttons.join('')}</div>`;
+}
+
 function leadHTML(l){
   const p=l.priority.toLowerCase();
 
@@ -711,6 +778,7 @@ function leadHTML(l){
 
     ${l.preference?`<div class="muted">Preference: ${esc(l.preference)}</div>`:''}
     ${l.notes?`<div style="margin-top:7px">${esc(l.notes)}</div>`:''}
+    ${statusActionButtons(l)}
     ${l.followup?`<div class="muted" style="margin-top:7px"><b>Next Follow-up:</b> ${esc(l.followup)}</div>`:''}
     ${(() => {
       const pls=db.plots.filter(p=>(p.linkedLeadIds||[]).includes(l.id)||p.leadId===l.id);
@@ -817,12 +885,24 @@ function renderDashboard(){
     center.map(followupHTML).join(''):
     '<div class="empty">No pending follow-ups.</div>';
 
-  const rows=STATUSES.map(s=>
-    `<tr><td>${s}</td><td>${db.leads.filter(x=>x.status===s).length}</td></tr>`
-  ).join('');
-
+  const maxCount=Math.max(1,...STATUSES.map(s=>db.leads.filter(x=>x.status===s).length));
   $('pipeline').innerHTML=
-    `<table><tr><th>Status</th><th>Leads</th></tr>${rows}</table>`;
+    `<div class="pipeline-grid">${
+      STATUSES.map(s=>{
+        const items=db.leads.filter(x=>x.status===s);
+        const names=items.slice(0,3).map(x=>esc(x.name)).join(', ');
+        const more=items.length>3?` +${items.length-3} more`:'';
+        const pct=Math.round(items.length/maxCount*100);
+        return `<div class="pipeline-stage">
+          <div class="pipeline-stage-head">
+            <div class="pipeline-stage-name">${esc(s)}</div>
+            <div class="pipeline-count">${items.length}</div>
+          </div>
+          <div class="pipeline-bar"><span style="width:${pct}%"></span></div>
+          <div class="pipeline-stage-list">${names||'No leads'}${more}</div>
+        </div>`;
+      }).join('')
+    }</div>`;
 }
 
 function renderReports(){
