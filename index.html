@@ -196,6 +196,22 @@ table{width:100%;border-collapse:collapse}
   .maptools{right:8px;top:8px}
   .maptools button{min-width:44px;min-height:44px}
 }
+
+.followup-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
+.followup-card{border:1px solid var(--line);border-radius:12px;padding:12px;background:#fff}
+.followup-card.overdue{border-left:5px solid var(--danger)}
+.followup-card.today{border-left:5px solid var(--warn)}
+.followup-card.upcoming{border-left:5px solid #175cd3}
+.followup-title{font-weight:800;margin-bottom:4px}
+.followup-date{font-size:12px;color:var(--muted);margin-top:4px}
+.linked-customer{border:1px solid var(--line);border-radius:12px;padding:12px;background:#fff;margin-top:10px}
+.linked-customer-head{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+.linked-customer-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}
+.linked-customer-actions a,.linked-customer-actions button{font-size:12px;padding:8px 10px}
+.link-count{display:inline-block;background:#eef2f4;border-radius:999px;padding:4px 8px;font-size:12px;font-weight:800}
+.history{margin-top:12px;border-top:1px solid var(--line);padding-top:10px}
+.history-item{font-size:12px;padding:7px 0;border-bottom:1px dashed var(--line)}
+@media(max-width:800px){.followup-grid{grid-template-columns:1fr}}
 </style>
 </head>
 
@@ -210,7 +226,12 @@ table{width:100%;border-collapse:collapse}
 <section id="dashboard" class="view active">
   <div class="row"><h2>Dashboard</h2><button onclick="openLead()">+ Add Lead</button></div>
   <div id="metrics" class="grid cards"></div>
-  <div class="card" style="margin-top:12px"><h3>Today's Follow-ups</h3><div id="todayFollowups" class="list"></div></div>
+  <div class="followup-grid">
+    <div class="followup-card overdue"><div class="muted">Overdue Follow-ups</div><div id="overdueCount" class="metric">0</div></div>
+    <div class="followup-card today"><div class="muted">Today's Follow-ups</div><div id="todayCount" class="metric">0</div></div>
+    <div class="followup-card upcoming"><div class="muted">Next 7 Days</div><div id="upcomingCount" class="metric">0</div></div>
+  </div>
+  <div class="card" style="margin-top:12px"><h3>Follow-up Center</h3><div id="todayFollowups" class="list"></div></div>
   <div class="card" style="margin-top:12px"><h3>Lead Pipeline</h3><div id="pipeline" class="tablewrap"></div></div>
 </section>
 
@@ -477,6 +498,13 @@ const STATUSES=[
 let db=JSON.parse(localStorage.getItem(KEY)||'{"leads":[],"plots":[]}');
 if(!Array.isArray(db.leads))db.leads=[];
 if(!Array.isArray(db.plots))db.plots=[];
+db.plots.forEach(p=>{
+  if(!Array.isArray(p.linkedLeadIds))p.linkedLeadIds=p.leadId?[p.leadId]:[];
+  p.linkedLeadIds=[...new Set(p.linkedLeadIds.filter(Boolean))];
+});
+db.leads.forEach(l=>{
+  if(!Array.isArray(l.followupHistory))l.followupHistory=[];
+});
 const $=id=>document.getElementById(id);
 
 function save(){localStorage.setItem(KEY,JSON.stringify(db))}
@@ -510,6 +538,7 @@ function init(){
     document.body.appendChild(plotDetailsDialog);
   }
 
+  save();
   renderAll();
   setupMap();
 }
@@ -551,6 +580,7 @@ function saveLead(e){
   e.preventDefault();
 
   const id=$('leadId').value;
+  const old=id?db.leads.find(x=>x.id===id):null;
   const l={
     id:id||uid(),
     name:$('name').value.trim(),
@@ -565,19 +595,27 @@ function saveLead(e){
     preference:$('preference').value.trim(),
     followup:$('followup').value,
     notes:$('notes').value.trim(),
+    followupHistory:Array.isArray(old?.followupHistory)?old.followupHistory:[],
     updated:new Date().toISOString()
   };
 
   if(id){
     const i=db.leads.findIndex(x=>x.id===id);
-    db.leads[i]=l;
+    if(i>=0)db.leads[i]=l;
   }else{
     db.leads.unshift(l);
+  }
+
+  // If a new customer was created from a plot popup, link it automatically.
+  if(pendingPlotLinkId){
+    linkLeadToPlot(pendingPlotLinkId,l.id,true);
+    pendingPlotLinkId='';
   }
 
   save();
   leadDlg.close();
   renderAll();
+  renderMapPlotMarkers();
 }
 
 function delLead(id){
@@ -619,11 +657,18 @@ function leadHTML(l){
 
     ${l.preference?`<div class="muted">Preference: ${esc(l.preference)}</div>`:''}
     ${l.notes?`<div style="margin-top:7px">${esc(l.notes)}</div>`:''}
+    ${l.followup?`<div class="muted" style="margin-top:7px"><b>Next Follow-up:</b> ${esc(l.followup)}</div>`:''}
+    ${(() => {
+      const pls=db.plots.filter(p=>(p.linkedLeadIds||[]).includes(l.id)||p.leadId===l.id);
+      return pls.length?`<div class="muted" style="margin-top:7px"><b>Linked Plots:</b> ${pls.map(p=>esc(p.number)).join(', ')}</div>`:'';
+    })()}
+    ${Array.isArray(l.followupHistory)&&l.followupHistory.length?`<div class="history"><b>Follow-up History</b>${l.followupHistory.slice(0,3).map(h=>`<div class="history-item">${esc(h.action)} · ${esc(h.date||'')} ${h.note?'· '+esc(h.note):''}</div>`).join('')}</div>`:''}
 
     <div class="actions">
       <button onclick="openLead('${l.id}')">Edit</button>
       <button class="call" onclick="callLead('${esc(l.mobile)}')">Call</button>
       <button class="wa" onclick="waLead('${esc(l.mobile)}')">WhatsApp</button>
+      ${l.followup?`<button onclick="completeFollowup('${l.id}')">✓ Done</button><button class="secondary" onclick="rescheduleFollowup('${l.id}')">Reschedule</button>`:''}
       <button class="danger" onclick="delLead('${l.id}')">Delete</button>
     </div>
   </div>`
@@ -649,6 +694,46 @@ function renderLeads(){
     '<div class="card empty">No leads found.</div>'
 }
 
+function localDateISO(d=new Date()){
+  const x=new Date(d);
+  const off=x.getTimezoneOffset();
+  return new Date(x.getTime()-off*60000).toISOString().slice(0,10);
+}
+function dateDiffDays(a,b){
+  const A=new Date(a+'T00:00:00'), B=new Date(b+'T00:00:00');
+  return Math.round((A-B)/86400000);
+}
+function followupBucket(date){
+  if(!date)return 'none';
+  const today=localDateISO();
+  const diff=dateDiffDays(date,today);
+  if(diff<0)return 'overdue';
+  if(diff===0)return 'today';
+  if(diff<=7)return 'upcoming';
+  return 'later';
+}
+function followupActions(l){
+  if(!l.followup)return '';
+  return `<div class="actions">
+    <button class="call" onclick="callLead('${esc(l.mobile)}')">📞 Call</button>
+    <button class="wa" onclick="waLead('${esc(l.mobile)}')">💬 WhatsApp</button>
+    <button onclick="completeFollowup('${l.id}')">✓ Done</button>
+    <button class="secondary" onclick="rescheduleFollowup('${l.id}')">📅 Reschedule</button>
+  </div>`;
+}
+function followupHTML(l){
+  const bucket=followupBucket(l.followup);
+  const label=bucket==='overdue'?'OVERDUE':bucket==='today'?'TODAY':'UPCOMING';
+  const cls=bucket==='overdue'?'overdue':bucket==='today'?'today':'upcoming';
+  const plotLinks=db.plots.filter(p=>(p.linkedLeadIds||[]).includes(l.id)||p.leadId===l.id).map(p=>p.number);
+  return `<div class="followup-card ${cls}">
+    <div class="followup-title">${esc(l.name)} <span class="badge">${label}</span></div>
+    <div class="muted">${esc(l.mobile)} · ${esc(l.status)} · ${esc(l.priority)}</div>
+    <div class="followup-date">Follow-up: <b>${esc(l.followup)}</b>${plotLinks.length?' · Plot '+esc(plotLinks.join(', ')):''}</div>
+    ${l.notes?`<div style="margin-top:6px">${esc(l.notes)}</div>`:''}
+    ${followupActions(l)}
+  </div>`;
+}
 function renderDashboard(){
   const total=db.leads.length;
   const hot=db.leads.filter(x=>x.priority==='Hot').length;
@@ -662,12 +747,19 @@ function renderDashboard(){
     ['Closed',closed]
   ].map(x=>`<div class="card"><div class="muted">${x[0]}</div><div class="metric">${x[1]}</div></div>`).join('');
 
-  const today=new Date().toISOString().slice(0,10);
-  const f=db.leads.filter(x=>x.followup===today);
+  const today=localDateISO();
+  const overdue=db.leads.filter(x=>followupBucket(x.followup)==='overdue');
+  const todayLeads=db.leads.filter(x=>followupBucket(x.followup)==='today');
+  const upcoming=db.leads.filter(x=>followupBucket(x.followup)==='upcoming');
 
-  $('todayFollowups').innerHTML=f.length?
-    f.map(leadHTML).join(''):
-    '<div class="empty">No follow-ups scheduled for today.</div>';
+  $('overdueCount').textContent=overdue.length;
+  $('todayCount').textContent=todayLeads.length;
+  $('upcomingCount').textContent=upcoming.length;
+
+  const center=[...overdue,...todayLeads,...upcoming];
+  $('todayFollowups').innerHTML=center.length?
+    center.map(followupHTML).join(''):
+    '<div class="empty">No pending follow-ups.</div>';
 
   const rows=STATUSES.map(s=>
     `<tr><td>${s}</td><td>${db.leads.filter(x=>x.status===s).length}</td></tr>`
@@ -732,11 +824,19 @@ function normalizeIndianMobile(value){
   return n;
 }
 
+function getPlotLeadIds(p){
+  const ids=Array.isArray(p.linkedLeadIds)?p.linkedLeadIds.slice():[];
+  if(p.leadId && !ids.includes(p.leadId))ids.unshift(p.leadId);
+  return [...new Set(ids)].filter(id=>db.leads.some(l=>l.id===id));
+}
+let pendingPlotLinkId='';
+
 function openPlotDetails(id){
   const p=db.plots.find(x=>x.id===id);
   if(!p)return;
 
-  const lead=p.leadId ? db.leads.find(l=>l.id===p.leadId) : null;
+  const leadIds=getPlotLeadIds(p);
+  const leads=leadIds.map(lid=>db.leads.find(l=>l.id===lid)).filter(Boolean);
   const status=String(p.status||'Unknown');
   const cls=plotStatusClass(status);
 
@@ -745,51 +845,111 @@ function openPlotDetails(id){
   statusEl.textContent=status;
   statusEl.className='plotdetail-status plot-'+cls;
 
+  const customers=leads.length?leads.map(l=>{
+    const tel=String(l.mobile||'').replace(/[^\d+]/g,'');
+    const wa=normalizeIndianMobile(l.mobile);
+    return `<div class="linked-customer">
+      <div class="linked-customer-head">
+        <div>
+          <b>${esc(l.name)}</b>
+          <div class="muted">${esc(l.mobile)} · ${esc(l.status)} · ${esc(l.priority)}</div>
+        </div>
+        <span class="link-count">${esc(l.followup||'No follow-up')}</span>
+      </div>
+      <div class="muted" style="margin-top:6px">
+        Budget: ${l.budget?money(l.budget):'Not set'} · Required: ${l.size?esc(l.size)+' Sq.Yd.':'Not set'}
+      </div>
+      ${l.notes?`<div style="margin-top:6px">${esc(l.notes)}</div>`:''}
+      <div class="linked-customer-actions">
+        ${l.mobile?`<a class="call" href="tel:${esc(tel)}">📞 Call</a>`:''}
+        ${wa?`<a class="wa" href="https://wa.me/${wa}" target="_blank" rel="noopener">💬 WhatsApp</a>`:''}
+        <button type="button" onclick="closePlotDetails();openLead('${l.id}')">✏️ Edit Lead</button>
+        ${l.followup?`<button type="button" onclick="completeFollowup('${l.id}');openPlotDetails('${p.id}')">✓ Follow-up Done</button>`:''}
+        <button type="button" class="danger" onclick="unlinkLeadFromPlot('${p.id}','${l.id}')">Unlink</button>
+      </div>
+    </div>`;
+  }).join(''):'<div class="empty">No customers linked to this plot yet.</div>';
+
   $('plotDetailsContent').innerHTML=`
     <div class="plotdetail-grid">
-      <div class="plotdetail-item">
-        <div class="plotdetail-label">Size</div>
-        <div class="plotdetail-value">${p.size ? esc(p.size)+' Sq.Yd.' : 'Not set'}</div>
-      </div>
-      <div class="plotdetail-item">
-        <div class="plotdetail-label">Road Width</div>
-        <div class="plotdetail-value">${esc(p.road||'Not set')}</div>
-      </div>
-      <div class="plotdetail-item">
-        <div class="plotdetail-label">Facing</div>
-        <div class="plotdetail-value">${esc(p.facing||'Not set')}</div>
-      </div>
-      <div class="plotdetail-item">
-        <div class="plotdetail-label">Asking Price</div>
-        <div class="plotdetail-value">${p.price ? money(p.price) : 'Not set'}</div>
-      </div>
-      <div class="plotdetail-item">
-        <div class="plotdetail-label">Owner / Dealer</div>
-        <div class="plotdetail-value">${esc(p.owner||'Not set')}</div>
-      </div>
-      <div class="plotdetail-item">
-        <div class="plotdetail-label">Linked Customer</div>
-        <div class="plotdetail-value">${lead ? esc(lead.name)+' · '+esc(lead.mobile) : 'No customer linked'}</div>
-      </div>
+      <div class="plotdetail-item"><div class="plotdetail-label">Size</div><div class="plotdetail-value">${p.size ? esc(p.size)+' Sq.Yd.' : 'Not set'}</div></div>
+      <div class="plotdetail-item"><div class="plotdetail-label">Road Width</div><div class="plotdetail-value">${esc(p.road||'Not set')}</div></div>
+      <div class="plotdetail-item"><div class="plotdetail-label">Facing</div><div class="plotdetail-value">${esc(p.facing||'Not set')}</div></div>
+      <div class="plotdetail-item"><div class="plotdetail-label">Asking Price</div><div class="plotdetail-value">${p.price ? money(p.price) : 'Not set'}</div></div>
+      <div class="plotdetail-item"><div class="plotdetail-label">Owner / Dealer</div><div class="plotdetail-value">${esc(p.owner||'Not set')}</div></div>
+      <div class="plotdetail-item"><div class="plotdetail-label">Linked Customers</div><div class="plotdetail-value">${leads.length}</div></div>
     </div>
     ${p.notes ? `<div class="plotdetail-notes"><b>Notes:</b><br>${esc(p.notes)}</div>` : ''}
+    <div style="margin-top:16px">
+      <div class="row"><h3 style="margin:0">Linked Customer(s)</h3><button type="button" onclick="openNewLeadForPlot('${p.id}')">+ Add New Customer</button></div>
+      ${customers}
+    </div>
   `;
 
   const actions=$('plotDetailsActions');
-  let html=`<button type="button" class="edit" onclick="closePlotDetails();openPlot('${p.id}')">✏️ Edit Plot</button>`;
-  if(lead && lead.mobile){
-    const tel=String(lead.mobile).replace(/[^\d+]/g,'');
-    const wa=normalizeIndianMobile(lead.mobile);
-    html+=`<a class="call" href="tel:${esc(tel)}">📞 Call</a>`;
-    if(wa) html+=`<a class="wa" href="https://wa.me/${wa}" target="_blank" rel="noopener">💬 WhatsApp</a>`;
-  }
-  html+=`<button type="button" class="close" onclick="closePlotDetails()">Close</button>`;
-  actions.innerHTML=html;
+  actions.innerHTML=`
+    <button type="button" class="edit" onclick="closePlotDetails();openPlot('${p.id}')">✏️ Edit Plot</button>
+    <button type="button" onclick="openLinkExistingLead('${p.id}')">🔗 Link Existing Lead</button>
+    <button type="button" class="close" onclick="closePlotDetails()">Close</button>
+  `;
 
   const dlg=$('plotDetailsDlg');
-  if(dlg.parentElement!==document.body) document.body.appendChild(dlg);
-  if(dlg.showModal) dlg.showModal();
-  else dlg.setAttribute('open','');
+  if(dlg.parentElement!==document.body)document.body.appendChild(dlg);
+  if(dlg.showModal)dlg.showModal(); else dlg.setAttribute('open','');
+}
+
+function openNewLeadForPlot(plotId){
+  pendingPlotLinkId=plotId;
+  closePlotDetails();
+  openLead();
+}
+
+function openLinkExistingLead(plotId){
+  const p=db.plots.find(x=>x.id===plotId);
+  if(!p)return;
+  const ids=getPlotLeadIds(p);
+  const available=db.leads.filter(l=>!ids.includes(l.id));
+  if(!available.length){
+    alert('All existing leads are already linked to this plot.');
+    return;
+  }
+  const choices=available.map((l,i)=>`${i+1}. ${l.name} · ${l.mobile}`).join('\n');
+  const answer=prompt('Enter customer number to link:\n\n'+choices);
+  if(!answer)return;
+  const idx=Number(answer)-1;
+  if(!Number.isInteger(idx)||!available[idx]){
+    alert('Invalid customer number.');
+    return;
+  }
+  linkLeadToPlot(plotId,available[idx].id);
+  openPlotDetails(plotId);
+}
+
+function linkLeadToPlot(plotId,leadId,silent=false){
+  const p=db.plots.find(x=>x.id===plotId);
+  if(!p)return;
+  if(!Array.isArray(p.linkedLeadIds))p.linkedLeadIds=p.leadId?[p.leadId]:[];
+  if(!p.linkedLeadIds.includes(leadId))p.linkedLeadIds.push(leadId);
+  if(!p.leadId)p.leadId=leadId;
+  p.updated=new Date().toISOString();
+  save();
+  renderPlots();
+  renderMapPlotMarkers();
+  renderDashboard();
+  if(!silent)alert('Customer linked to Plot '+p.number+'.');
+}
+
+function unlinkLeadFromPlot(plotId,leadId){
+  const p=db.plots.find(x=>x.id===plotId);
+  if(!p)return;
+  p.linkedLeadIds=getPlotLeadIds(p).filter(id=>id!==leadId);
+  if(p.leadId===leadId)p.leadId=p.linkedLeadIds[0]||'';
+  p.updated=new Date().toISOString();
+  save();
+  renderPlots();
+  renderMapPlotMarkers();
+  renderDashboard();
+  openPlotDetails(plotId);
 }
 
 function closePlotDetails(){
@@ -855,11 +1015,14 @@ function savePlot(e){
     price:Number($('plotPrice').value||0),
     owner:$('plotOwner').value.trim(),
     leadId:$('plotLead').value||'',
+    linkedLeadIds:(id?((db.plots.find(x=>x.id===id)||{}).linkedLeadIds||[]):[]),
     x:$('plotX').value===''?null:Number($('plotX').value),
     y:$('plotY').value===''?null:Number($('plotY').value),
     notes:$('plotNotes').value.trim(),
     updated:new Date().toISOString()
   };
+
+  if(p.leadId && !p.linkedLeadIds.includes(p.leadId))p.linkedLeadIds.push(p.leadId);
 
   if(id){
     const i=db.plots.findIndex(x=>x.id===id);
@@ -905,6 +1068,7 @@ function renderPlots(){
 
   $('plotList').innerHTML=a.map(p=>{
     const lead=db.leads.find(l=>l.id===p.leadId);
+    const linkedCount=getPlotLeadIds(p).length;
     const cls=plotStatusClass(p.status);
 
     return `<div class="lead">
@@ -922,8 +1086,8 @@ function renderPlots(){
         Price: ${p.price?money(p.price):'Not set'} · Owner/Dealer: ${esc(p.owner||'Not set')}
       </div>
 
-      ${lead?
-        `<div style="margin-top:7px"><b>Linked Lead:</b> ${esc(lead.name)} · ${esc(lead.mobile)}</div>`:
+      ${linkedCount?
+        `<div style="margin-top:7px"><b>Linked Customers:</b> ${linkedCount}${lead?` · Primary: ${esc(lead.name)}`:''}</div>`:
         '<div class="muted" style="margin-top:7px">No customer linked</div>'}
 
       ${p.notes?`<div style="margin-top:7px">${esc(p.notes)}</div>`:''}
@@ -937,6 +1101,42 @@ function renderPlots(){
   }).join('');
 }
 
+
+
+function addFollowupHistory(l,action,note=''){
+  if(!Array.isArray(l.followupHistory))l.followupHistory=[];
+  l.followupHistory.unshift({
+    at:new Date().toISOString(),
+    action,
+    date:l.followup||'',
+    note:note||''
+  });
+  l.followupHistory=l.followupHistory.slice(0,50);
+}
+function completeFollowup(id){
+  const l=db.leads.find(x=>x.id===id);
+  if(!l)return;
+  if(l.followup)addFollowupHistory(l,'Completed');
+  l.followup='';
+  l.updated=new Date().toISOString();
+  save();
+  renderAll();
+}
+function rescheduleFollowup(id){
+  const l=db.leads.find(x=>x.id===id);
+  if(!l)return;
+  const next=prompt('Enter next follow-up date (YYYY-MM-DD):',l.followup||localDateISO());
+  if(!next)return;
+  if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(next)){
+    alert('Use date format YYYY-MM-DD.');
+    return;
+  }
+  addFollowupHistory(l,'Rescheduled','New date: '+next);
+  l.followup=next;
+  l.updated=new Date().toISOString();
+  save();
+  renderAll();
+}
 
 function renderAll(){
   renderLeads();
@@ -1111,6 +1311,7 @@ function registerPlotAtMapPoint(clientX,clientY){
     price:0,
     owner:'',
     leadId:'',
+    linkedLeadIds:[],
     x:x,
     y:y,
     notes:'',
