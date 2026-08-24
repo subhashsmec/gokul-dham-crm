@@ -22,7 +22,7 @@ button.danger{background:#fee4e2;color:var(--danger)}
 button.call{background:#064e3b}
 button.wa{background:#e7f7ee;color:#087443}
 .grid{display:grid;gap:12px}
-.cards{grid-template-columns:repeat(4,1fr)}
+.cards{grid-template-columns:repeat(auto-fit,minmax(160px,1fr))}
 .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;box-shadow:0 1px 3px #0000000d}
 .metric{font-size:26px;font-weight:800}
 .muted{color:var(--muted);font-size:13px}
@@ -236,6 +236,13 @@ table{width:100%;border-collapse:collapse}
 .pipeline-stage-list{margin-top:8px;font-size:12px;color:var(--muted)}
 .status-actions{display:flex;gap:5px;flex-wrap:wrap;margin-top:9px}
 .status-actions button{font-size:11px;padding:6px 8px}
+.deal-box{margin-top:12px;border:1px solid var(--line);border-radius:12px;padding:12px;background:#fbfcfd}
+.deal-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
+.deal-item{border:1px solid var(--line);border-radius:9px;padding:9px;background:#fff}
+.deal-label{font-size:10px;color:var(--muted);text-transform:uppercase;font-weight:800}
+.deal-value{font-weight:800;margin-top:3px}
+@media(max-width:800px){.deal-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:500px){.deal-grid{grid-template-columns:1fr}}
 @media(max-width:800px){.pipeline-grid{grid-template-columns:repeat(2,minmax(140px,1fr))}}
 @media(max-width:500px){.pipeline-grid{grid-template-columns:1fr}}
 </style>
@@ -244,7 +251,7 @@ table{width:100%;border-collapse:collapse}
 <body>
 <header>
   <h1>Gokul Dham CRM</h1>
-  <small>Sector-13, Hansi · Free offline-first version</small>
+  <small>Sector-13, Hansi · Free offline-first · Step 8 Sales Management</small>
 </header>
 
 <main>
@@ -533,7 +540,20 @@ table{width:100%;border-collapse:collapse}
     <div class="field"><label>Preference</label><input id="preference" placeholder="Corner / Park / 50-ft road"></div>
 
     <div class="field"><label>Next Follow-up</label><input id="followup" type="date"></div>
-    <div class="field"><label>Notes</label><textarea id="notes" placeholder="Conversation, requirement, next action..."></textarea></div>
+
+    <div class="field"><label>Site Visit Date</label><input id="siteVisitDate" type="date"></div>
+    <div class="field"><label>Site Visit Time</label><input id="siteVisitTime" type="time"></div>
+
+    <div class="field"><label>Deal / Final Price (₹)</label><input id="dealPrice" type="number" min="0"></div>
+    <div class="field"><label>Token / Booking Amount (₹)</label><input id="tokenAmount" type="number" min="0"></div>
+
+    <div class="field"><label>Booking Date</label><input id="bookingDate" type="date"></div>
+    <div class="field"><label>Payment Status</label>
+      <select id="paymentStatus"><option>Not Started</option><option>Token Pending</option><option>Token Paid</option><option>Part Payment</option><option>Fully Paid</option></select>
+    </div>
+
+    <div class="field" style="grid-column:1/-1"><label>Site Visit / Deal Notes</label><textarea id="dealNotes" placeholder="Visit result, negotiation, token, booking or payment details..."></textarea></div>
+    <div class="field" style="grid-column:1/-1"><label>Notes</label><textarea id="notes" placeholder="Conversation, requirement, next action..."></textarea></div>
   </div>
 
   <div class="row" style="margin-top:14px">
@@ -571,6 +591,13 @@ db.plots.forEach(p=>{
 db.leads.forEach(l=>{
   if(!Array.isArray(l.followupHistory))l.followupHistory=[];
   if(!Array.isArray(l.activities))l.activities=[];
+  if(l.siteVisitDate==null)l.siteVisitDate='';
+  if(l.siteVisitTime==null)l.siteVisitTime='';
+  if(l.dealPrice==null)l.dealPrice=0;
+  if(l.tokenAmount==null)l.tokenAmount=0;
+  if(l.bookingDate==null)l.bookingDate='';
+  if(l.paymentStatus==null)l.paymentStatus='Not Started';
+  if(l.dealNotes==null)l.dealNotes='';
 });
 const $=id=>document.getElementById(id);
 
@@ -628,10 +655,11 @@ function openLead(id=''){
   if(id){
     const l=db.leads.find(x=>x.id===id);
     if(!l)return;
-    ['name','mobile','category','location','budget','size','source','status','priority','preference','followup','notes']
+    ['name','mobile','category','location','budget','size','source','status','priority','preference','followup','siteVisitDate','siteVisitTime','dealPrice','tokenAmount','bookingDate','paymentStatus','dealNotes','notes']
       .forEach(k=>$(k).value=l[k]??'');
   }else{
-    ['name','mobile','budget','size','preference','followup','notes'].forEach(k=>$(k).value='');
+    ['name','mobile','budget','size','preference','followup','siteVisitDate','siteVisitTime','dealPrice','tokenAmount','bookingDate','dealNotes','notes'].forEach(k=>$(k).value='');
+    $('paymentStatus').value='Not Started';
     $('source').value='Facebook';
     $('status').value='New';
     $('priority').value='Warm';
@@ -661,8 +689,16 @@ function saveLead(e){
     priority:$('priority').value,
     preference:$('preference').value.trim(),
     followup:$('followup').value,
+    siteVisitDate:$('siteVisitDate').value,
+    siteVisitTime:$('siteVisitTime').value,
+    dealPrice:Number($('dealPrice').value||0),
+    tokenAmount:Number($('tokenAmount').value||0),
+    bookingDate:$('bookingDate').value,
+    paymentStatus:$('paymentStatus').value,
+    dealNotes:$('dealNotes').value.trim(),
     notes:$('notes').value.trim(),
     followupHistory:Array.isArray(old?.followupHistory)?old.followupHistory:[],
+    activities:Array.isArray(old?.activities)?old.activities:[],
     updated:new Date().toISOString()
   };
 
@@ -671,7 +707,6 @@ function saveLead(e){
     if(i>=0){
       const previous=db.leads[i];
       if(previous.status!==l.status){
-        if(!Array.isArray(l.activities))l.activities=[];
         l.activities.unshift({
           id:uid(),
           at:new Date().toISOString(),
@@ -686,18 +721,17 @@ function saveLead(e){
     db.leads.unshift(l);
   }
 
-  // If a new customer was created from a plot popup, link it automatically.
   if(pendingPlotLinkId){
     linkLeadToPlot(pendingPlotLinkId,l.id,true);
     pendingPlotLinkId='';
   }
 
+  syncLinkedPlotsForLead(l);
   save();
   leadDlg.close();
   renderAll();
   renderMapPlotMarkers();
 }
-
 function delLead(id){
   if(confirm('Delete this lead?')){
     db.leads=db.leads.filter(x=>x.id!==id);
@@ -716,6 +750,16 @@ function score(l){
 }
 
 
+function syncLinkedPlotsForLead(l){
+  const linked=db.plots.filter(p=>(p.linkedLeadIds||[]).includes(l.id)||p.leadId===l.id);
+  linked.forEach(p=>{
+    if(l.status==='Booking') p.status='Hold';
+    if(l.status==='Closed') p.status='Sold';
+    if(l.status==='Lost' && p.status==='Hold') p.status='Available';
+    p.updated=new Date().toISOString();
+  });
+}
+
 function changeLeadStatus(id,nextStatus){
   const l=db.leads.find(x=>x.id===id);
   if(!l || !STATUSES.includes(nextStatus))return;
@@ -724,7 +768,6 @@ function changeLeadStatus(id,nextStatus){
 
   l.status=nextStatus;
   l.updated=new Date().toISOString();
-
   if(!Array.isArray(l.activities))l.activities=[];
   l.activities.unshift({
     id:uid(),
@@ -734,6 +777,9 @@ function changeLeadStatus(id,nextStatus){
   });
   l.activities=l.activities.slice(0,100);
 
+  if(nextStatus==='Site Visit' && !l.siteVisitDate)l.siteVisitDate=localDateISO();
+  if(nextStatus==='Booking' && !l.bookingDate)l.bookingDate=localDateISO();
+  syncLinkedPlotsForLead(l);
   save();
   renderAll();
   renderMapPlotMarkers();
@@ -779,6 +825,13 @@ function leadHTML(l){
     ${l.preference?`<div class="muted">Preference: ${esc(l.preference)}</div>`:''}
     ${l.notes?`<div style="margin-top:7px">${esc(l.notes)}</div>`:''}
     ${statusActionButtons(l)}
+    ${(l.siteVisitDate||l.dealPrice||l.tokenAmount||l.bookingDate||l.dealNotes)?`<div class="deal-box"><b>Site Visit / Deal</b><div class="deal-grid">
+      <div class="deal-item"><div class="deal-label">Site Visit</div><div class="deal-value">${esc(l.siteVisitDate||'Not set')}${l.siteVisitTime?' · '+esc(l.siteVisitTime):''}</div></div>
+      <div class="deal-item"><div class="deal-label">Deal Price</div><div class="deal-value">${l.dealPrice?money(l.dealPrice):'Not set'}</div></div>
+      <div class="deal-item"><div class="deal-label">Booking/Token</div><div class="deal-value">${l.tokenAmount?money(l.tokenAmount):'Not set'}</div></div>
+      <div class="deal-item"><div class="deal-label">Booking Date</div><div class="deal-value">${esc(l.bookingDate||'Not set')}</div></div>
+      <div class="deal-item"><div class="deal-label">Payment</div><div class="deal-value">${esc(l.paymentStatus||'Not Started')}</div></div>
+    </div>${l.dealNotes?`<div class="muted" style="margin-top:8px">${esc(l.dealNotes)}</div>`:''}</div>`:''}
     ${l.followup?`<div class="muted" style="margin-top:7px"><b>Next Follow-up:</b> ${esc(l.followup)}</div>`:''}
     ${(() => {
       const pls=db.plots.filter(p=>(p.linkedLeadIds||[]).includes(l.id)||p.leadId===l.id);
@@ -862,12 +915,14 @@ function renderDashboard(){
   const total=db.leads.length;
   const hot=db.leads.filter(x=>x.priority==='Hot').length;
   const sv=db.leads.filter(x=>x.status==='Site Visit').length;
+  const booking=db.leads.filter(x=>x.status==='Booking').length;
   const closed=db.leads.filter(x=>x.status==='Closed').length;
 
   $('metrics').innerHTML=[
     ['Total Leads',total],
     ['Hot Leads',hot],
     ['Site Visits',sv],
+    ['Bookings',booking],
     ['Closed',closed]
   ].map(x=>`<div class="card"><div class="muted">${x[0]}</div><div class="metric">${x[1]}</div></div>`).join('');
 
@@ -914,8 +969,10 @@ function renderReports(){
     x,db.leads.filter(l=>l.category===x).length
   ]).filter(x=>x[1]);
 
+  const dealPriceTotal=db.leads.reduce((sum,l)=>sum+Number(l.dealPrice||0),0);
+  const tokenTotal=db.leads.reduce((sum,l)=>sum+Number(l.tokenAmount||0),0);
   $('reportBox').innerHTML=
-    `<h3>Plot Summary</h3><p><b>Total plot records:</b> ${db.plots.length}</p><p><b>Available:</b> ${db.plots.filter(x=>x.status==='Available').length} · <b>Hold:</b> ${db.plots.filter(x=>x.status==='Hold').length} · <b>Sold:</b> ${db.plots.filter(x=>x.status==='Sold').length}</p><h3>Location Report</h3>`+
+    `<h3>Sales Summary</h3><p><b>Negotiation:</b> ${db.leads.filter(x=>x.status==='Negotiation').length} · <b>Booking:</b> ${db.leads.filter(x=>x.status==='Booking').length} · <b>Closed:</b> ${db.leads.filter(x=>x.status==='Closed').length}</p><p><b>Total Deal Value:</b> ${money(dealPriceTotal)} · <b>Total Token/Booking:</b> ${money(tokenTotal)}</p><h3>Plot Summary</h3><p><b>Total plot records:</b> ${db.plots.length}</p><p><b>Available:</b> ${db.plots.filter(x=>x.status==='Available').length} · <b>Hold:</b> ${db.plots.filter(x=>x.status==='Hold').length} · <b>Sold:</b> ${db.plots.filter(x=>x.status==='Sold').length}</p><h3>Location Report</h3>`+
     (byLoc.length?
       byLoc.map(x=>`<p><b>${esc(x[0])}</b>: ${x[1]}</p>`).join(''):
       '<p class="muted">No data</p>')+
@@ -927,7 +984,7 @@ function renderReports(){
 }
 
 function exportCSV(){
-  const cols=['name','mobile','category','location','budget','size','source','status','priority','preference','followup','notes'];
+  const cols=['name','mobile','category','location','budget','size','source','status','priority','preference','followup','siteVisitDate','siteVisitTime','dealPrice','tokenAmount','bookingDate','paymentStatus','dealNotes','notes'];
   const csv=[
     cols.join(','),
     ...db.leads.map(l=>cols.map(k=>`"${String(l[k]??'').replaceAll('"','""')}"`).join(','))
@@ -1291,11 +1348,13 @@ function showLeadActivity(id){
   }
   $('activityLeadId').value=l.id;
   $('activityLeadTitle').textContent=`Activity — ${l.name}`;
-  $('activityLeadMeta').textContent=`${l.mobile||''} · ${l.status||''} · ${l.followup?'Next follow-up: '+l.followup:'No follow-up'}`;
+  $('activityLeadMeta').textContent=`${l.mobile||''} · ${l.status||''} · ${l.followup?'Next follow-up: '+l.followup:'No follow-up'}${l.dealPrice?' · Deal: '+money(l.dealPrice):''}`;
   $('activityQuick').innerHTML=`
     <button onclick="addActivityFromLead('${l.id}','Call')">📞 Call</button>
     <button onclick="addActivityFromLead('${l.id}','WhatsApp')">💬 WhatsApp</button>
     <button onclick="addActivityFromLead('${l.id}','Site Visit')">📍 Site Visit</button>
+    <button onclick="addActivityFromLead('${l.id}','Meeting')">🤝 Meeting</button>
+    <button onclick="addActivityFromLead('${l.id}','Payment')">💰 Payment</button>
     <button onclick="addActivityFromLead('${l.id}','Note')">📝 Note</button>`;
   $('activityList').innerHTML=history;
   if(dlg.showModal)dlg.showModal();else dlg.setAttribute('open','');
