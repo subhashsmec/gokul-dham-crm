@@ -251,7 +251,7 @@ table{width:100%;border-collapse:collapse}
 <body>
 <header>
   <h1>Gokul Dham CRM</h1>
-  <small>Sector-13, Hansi · Free offline-first · Step 8 Sales Management</small>
+  <small>Sector-13, Hansi · Free offline-first · Step 9 Booking & Closing Control</small>
 </header>
 
 <main>
@@ -599,6 +599,7 @@ db.leads.forEach(l=>{
   if(l.paymentStatus==null)l.paymentStatus='Not Started';
   if(l.dealNotes==null)l.dealNotes='';
 });
+db.plots.forEach(p=>{ if(p.status==null)p.status='Available'; });
 const $=id=>document.getElementById(id);
 
 function save(){localStorage.setItem(KEY,JSON.stringify(db))}
@@ -676,6 +677,25 @@ function saveLead(e){
 
   const id=$('leadId').value;
   const old=id?db.leads.find(x=>x.id===id):null;
+  const selectedStatus=$('status').value;
+  const selectedDealPrice=Number($('dealPrice').value||0);
+  const selectedToken=Number($('tokenAmount').value||0);
+  const selectedBookingDate=$('bookingDate').value;
+  const selectedPayment=$('paymentStatus').value;
+
+  if(selectedStatus==='Booking'){
+    if(selectedDealPrice<=0){ alert('Booking ke liye Deal / Final Price enter karein.'); $('dealPrice').focus(); return; }
+    if(selectedToken<0){ alert('Token / Booking Amount valid enter karein.'); $('tokenAmount').focus(); return; }
+    if(!selectedBookingDate){ alert('Booking Date enter karein.'); $('bookingDate').focus(); return; }
+    if(selectedPayment==='Not Started'){
+      alert('Booking ke liye Payment Status select karein.'); $('paymentStatus').focus(); return;
+    }
+  }
+  if(selectedStatus==='Closed'){
+    if(selectedDealPrice<=0){ alert('Closed ke liye Deal / Final Price required hai.'); $('dealPrice').focus(); return; }
+    if(selectedPayment!=='Fully Paid'){ alert('Closed / Sold ke liye Payment Status = Fully Paid hona chahiye.'); $('paymentStatus').focus(); return; }
+  }
+
   const l={
     id:id||uid(),
     name:$('name').value.trim(),
@@ -726,7 +746,7 @@ function saveLead(e){
     pendingPlotLinkId='';
   }
 
-  syncLinkedPlotsForLead(l);
+  syncLinkedPlotsForLead(l, old?.status||'');
   save();
   leadDlg.close();
   renderAll();
@@ -750,14 +770,39 @@ function score(l){
 }
 
 
-function syncLinkedPlotsForLead(l){
+function syncLinkedPlotsForLead(l, previousStatus=''){
   const linked=db.plots.filter(p=>(p.linkedLeadIds||[]).includes(l.id)||p.leadId===l.id);
   linked.forEach(p=>{
-    if(l.status==='Booking') p.status='Hold';
-    if(l.status==='Closed') p.status='Sold';
-    if(l.status==='Lost' && p.status==='Hold') p.status='Available';
+    if(l.status==='Booking'){
+      p.status='Hold';
+      p.holdLeadId=l.id;
+      p.holdDate=l.bookingDate||localDateISO();
+    }
+    if(l.status==='Closed'){
+      p.status='Sold';
+      p.soldLeadId=l.id;
+      p.soldDate=l.bookingDate||localDateISO();
+    }
+    // If a booked lead is moved back before closing, release only the hold created for this lead.
+    if(!['Booking','Closed'].includes(l.status) && previousStatus==='Booking' && p.status==='Hold' && p.holdLeadId===l.id){
+      p.status='Available';
+      delete p.holdLeadId;
+      delete p.holdDate;
+    }
     p.updated=new Date().toISOString();
   });
+}
+
+function prepareBooking(id){
+  const l=db.leads.find(x=>x.id===id);
+  if(!l)return;
+  openLead(id);
+  setTimeout(()=>{
+    $('status').value='Booking';
+    if(!$('bookingDate').value)$('bookingDate').value=localDateISO();
+    if($('paymentStatus').value==='Not Started')$('paymentStatus').value='Token Pending';
+    $('dealPrice').focus();
+  },120);
 }
 
 function changeLeadStatus(id,nextStatus){
@@ -766,20 +811,35 @@ function changeLeadStatus(id,nextStatus){
   const oldStatus=l.status||'New';
   if(oldStatus===nextStatus)return;
 
+  // Booking is a controlled step: capture the commercial terms before putting the plot on Hold.
+  if(nextStatus==='Booking'){
+    prepareBooking(id);
+    return;
+  }
+
+  // Closed means the sale is actually completed. Do not allow a premature Sold status.
+  if(nextStatus==='Closed'){
+    if(!l.dealPrice || Number(l.dealPrice)<=0){
+      alert('Closed karne se pehle Deal / Final Price enter karein.');
+      openLead(id); return;
+    }
+    if(l.paymentStatus!=='Fully Paid'){
+      alert('Closed karne se pehle Payment Status = Fully Paid karein.');
+      openLead(id); return;
+    }
+    if(!l.bookingDate)l.bookingDate=localDateISO();
+  }
+
   l.status=nextStatus;
   l.updated=new Date().toISOString();
   if(!Array.isArray(l.activities))l.activities=[];
   l.activities.unshift({
-    id:uid(),
-    at:new Date().toISOString(),
-    action:'Status Changed',
-    note:`${oldStatus} → ${nextStatus}`
+    id:uid(), at:new Date().toISOString(), action:'Status Changed', note:`${oldStatus} → ${nextStatus}`
   });
   l.activities=l.activities.slice(0,100);
 
   if(nextStatus==='Site Visit' && !l.siteVisitDate)l.siteVisitDate=localDateISO();
-  if(nextStatus==='Booking' && !l.bookingDate)l.bookingDate=localDateISO();
-  syncLinkedPlotsForLead(l);
+  syncLinkedPlotsForLead(l,oldStatus);
   save();
   renderAll();
   renderMapPlotMarkers();
@@ -790,7 +850,11 @@ function statusActionButtons(l){
   const buttons=[];
   if(current>=0 && current<STATUSES.length-1){
     const next=STATUSES[current+1];
-    if(next!=='Lost'){
+    if(next==='Booking'){
+      buttons.push(`<button onclick="prepareBooking('${l.id}')">→ Booking</button>`);
+    }else if(next==='Closed'){
+      buttons.push(`<button onclick="changeLeadStatus('${l.id}','Closed')">→ Closed / Sold</button>`);
+    }else if(next!=='Lost'){
       buttons.push(`<button onclick="changeLeadStatus('${l.id}','${esc(next)}')">→ ${esc(next)}</button>`);
     }
   }
@@ -832,6 +896,8 @@ function leadHTML(l){
       <div class="deal-item"><div class="deal-label">Booking Date</div><div class="deal-value">${esc(l.bookingDate||'Not set')}</div></div>
       <div class="deal-item"><div class="deal-label">Payment</div><div class="deal-value">${esc(l.paymentStatus||'Not Started')}</div></div>
     </div>${l.dealNotes?`<div class="muted" style="margin-top:8px">${esc(l.dealNotes)}</div>`:''}</div>`:''}
+    ${l.status==='Booking'?`<div class="muted" style="margin-top:8px"><b>🔒 Booking:</b> Plot is on Hold. Closed / Sold requires Fully Paid.</div>`:''}
+    ${l.status==='Closed'?`<div class="muted" style="margin-top:8px"><b>✅ Closed:</b> Plot is marked Sold.</div>`:''}
     ${l.followup?`<div class="muted" style="margin-top:7px"><b>Next Follow-up:</b> ${esc(l.followup)}</div>`:''}
     ${(() => {
       const pls=db.plots.filter(p=>(p.linkedLeadIds||[]).includes(l.id)||p.leadId===l.id);
