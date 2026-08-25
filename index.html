@@ -1973,7 +1973,7 @@ function printReceipt(){
   if(!box)return;
   const w=window.open('','_blank','width=800,height=700');
   if(!w){alert('Please allow pop-ups to print the receipt.');return;}
-  w.document.write(`<html><head><title>Payment Receipt</title><style>body{font-family:Arial;padding:30px}.receipt{max-width:700px;margin:auto;border:1px solid #ddd;padding:24px}.receipt h2{text-align:center}.receipt-title{text-align:center;color:#666;margin-bottom:18px}.receipt-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px dashed #ddd}.receipt-total{font-size:20px;font-weight:800;margin-top:14px;text-align:right}</style></head><body>${box.outerHTML}<script>window.onload=function(){window.print();}</script></body></html>`);
+  w.document.write(`<html><head><title>Payment Receipt</title><style>body{font-family:Arial;padding:30px}.receipt{max-width:700px;margin:auto;border:1px solid #ddd;padding:24px}.receipt h2{text-align:center}.receipt-title{text-align:center;color:#666;margin-bottom:18px}.receipt-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px dashed #ddd}.receipt-total{font-size:20px;font-weight:800;margin-top:14px;text-align:right}</style></head><body>${box.outerHTML}<script>window.onload=function(){window.print();}<\/script></body></html>`);
   w.document.close();
 }
 
