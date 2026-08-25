@@ -886,7 +886,17 @@ function fillSelect(id,arr,all=false){
     arr.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join('')
 }
 
+function normalizeCRMData(){
+  if(!Array.isArray(db.plots))db.plots=[];
+  if(!Array.isArray(db.leads))db.leads=[];
+  db.plots.forEach(p=>{
+    if(!Array.isArray(p.linkedLeadIds))p.linkedLeadIds=[];
+    if(p.leadId && !p.linkedLeadIds.includes(p.leadId))p.linkedLeadIds.push(p.leadId);
+  });
+}
+
 function init(){
+  normalizeCRMData();
   fillSelect('catFilter',CATEGORIES,true);
   fillSelect('locFilter',LOCATIONS,true);
   fillSelect('statusFilter',STATUSES,true);
@@ -2350,6 +2360,7 @@ function ensureProfitDashboard(){
       <div class="collection-card"><div class="muted">Gross Profit</div><div id="profitGross" class="metric">₹0</div></div>
       <div class="collection-card"><div class="muted">Outstanding</div><div id="profitOutstanding" class="metric">₹0</div></div>
       <div class="collection-card"><div class="muted">Sold Plots</div><div id="profitSoldPlots" class="metric">0</div></div>
+      <div class="collection-card"><div class="muted">Profit Margin</div><div id="profitMargin" class="metric">0%</div></div>
     </div>
     <div class="card" style="margin-top:12px">
       <div class="row"><h3 style="margin:0">Add Expense</h3></div>
@@ -2746,7 +2757,11 @@ function financeRange(){
   const now=new Date();
   const today=localDateISO(now);
   if(period==='all')return {from:'0000-01-01',to:'9999-12-31'};
-  if(period==='custom')return {from:$('financeFrom')?.value||today,to:$('financeTo')?.value||today};
+  if(period==='custom'){
+    const from=$('financeFrom')?.value||today;
+    const to=$('financeTo')?.value||today;
+    return from<=to?{from,to}:{from:to,to:from};
+  }
   if(period==='today')return {from:today,to:today};
   if(period==='week'){
     const d=new Date(now);
@@ -2848,7 +2863,8 @@ function renderProfitDashboard(){
   const vals={
     profitSales:money(sales),profitReceived:money(received),profitExpenses:money(otherExpenses),
     profitDealerCommission:money(dealerCommission),profitTotalExpense:money(totalExpense),
-    profitGross:money(grossProfit),profitOutstanding:money(outstanding),profitSoldPlots:String(soldPlots)
+    profitGross:money(grossProfit),profitOutstanding:money(outstanding),profitSoldPlots:String(soldPlots),
+    profitMargin:(sales>0?((grossProfit/sales)*100).toFixed(1):'0')+'%'
   };
   Object.entries(vals).forEach(([id,v])=>{if($(id))$(id).textContent=v;});
 
