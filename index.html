@@ -2696,7 +2696,7 @@ function ensureFinanceReports(){
   const host=document.querySelector('main')||document.body;
   panel=document.createElement('section');
   panel.id='financeReportsPanel';
-  panel.className='card';
+  panel.className='view card';
   panel.style.marginTop='12px';
   panel.innerHTML=`
     <div class="row">
@@ -3094,8 +3094,7 @@ function updateMap(){
 
   const info=$('mapZoomInfo');
   if(info)info.textContent=`Zoom: ${Math.round(mapScale*100)}%`;
-
-  renderMapPlotMarkers();}
+}
 
 function mapZoomIn(){
   mapScale=clamp(mapScale+0.25,0.1,5);
@@ -3390,6 +3389,7 @@ function setupMap(){
     mapZoomIn();
   });
 
+  renderMapPlotMarkers();
   updateMap();
 }
 function showProfitDashboard(){
