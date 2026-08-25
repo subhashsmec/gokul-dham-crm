@@ -296,6 +296,91 @@ table{width:100%;border-collapse:collapse}
 @media(max-width:500px){.deal-grid{grid-template-columns:1fr}}
 @media(max-width:800px){.pipeline-grid{grid-template-columns:repeat(2,minmax(140px,1fr))}}
 @media(max-width:500px){.pipeline-grid{grid-template-columns:1fr}}
+
+/* =========================
+   MOBILE RESPONSIVE UI v4
+   ========================= */
+html,body{max-width:100%;overflow-x:hidden}
+body{padding-bottom:78px}
+@media(max-width:600px){
+  body{font-size:14px;padding-bottom:74px}
+  header{padding:14px 14px 12px}
+  header h1{font-size:21px;line-height:1.2;margin:0 0 5px}
+  header .muted{font-size:12px;line-height:1.35}
+  main{padding:10px 10px 20px}
+  .row{gap:8px;align-items:center}
+  h2{font-size:22px}
+  h3{font-size:17px}
+  .row button{padding:9px 11px;font-size:12px}
+  .collection-grid{grid-template-columns:1fr 1fr!important;gap:9px}
+  .collection-card{padding:12px 10px;min-width:0}
+  .collection-card .metric{font-size:24px}
+  .formgrid,.deal-grid,.payment-grid,.dealer-grid,.schedule-grid{grid-template-columns:1fr!important}
+  .filters{grid-template-columns:1fr!important}
+  .tablewrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  table{min-width:680px}
+  .actions{flex-wrap:wrap}
+  .actions button{min-height:40px}
+  dialog{width:calc(100vw - 20px);max-width:calc(100vw - 20px);margin:auto}
+  input,select,textarea{font-size:16px!important;min-height:42px}
+  button{min-height:42px}
+  .mapviewport{height:62vh;min-height:320px}
+  .map-toolbar{overflow-x:auto;white-space:nowrap;padding-bottom:3px}
+  .map-toolbar button{flex:0 0 auto}
+
+  /* Thumb-friendly bottom navigation */
+  body>nav{
+    display:grid!important;
+    grid-template-columns:repeat(5,1fr);
+    gap:4px!important;
+    padding:6px 5px!important;
+    padding-bottom:calc(6px + env(safe-area-inset-bottom))!important;
+    overflow:hidden!important;
+    justify-content:stretch!important;
+    background:#fff!important;
+  }
+  body>nav button{
+    min-width:0!important;
+    width:100%!important;
+    padding:7px 3px!important;
+    min-height:52px!important;
+    border-radius:10px!important;
+    font-size:10px!important;
+    line-height:1.15!important;
+    white-space:normal!important;
+  }
+  body>nav .desktop-nav-extra{display:none!important}
+  .mobile-more-btn{display:block!important}
+
+  #mobileMorePanel{
+    position:fixed;
+    left:8px;right:8px;
+    bottom:76px;
+    z-index:80;
+    background:#fff;
+    border:1px solid var(--line);
+    border-radius:16px;
+    box-shadow:0 12px 35px rgba(0,0,0,.22);
+    padding:10px;
+  }
+  #mobileMorePanel .mobile-more-grid{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:8px;
+  }
+  #mobileMorePanel button{
+    min-height:48px;
+    font-size:12px;
+    padding:7px 4px;
+  }
+  #mobileMoreBackdrop{
+    position:fixed;inset:0;z-index:70;background:rgba(0,0,0,.18);
+  }
+}
+@media(min-width:601px){
+  #mobileMorePanel,#mobileMoreBackdrop,.mobile-more-btn{display:none!important}
+}
+
 </style>
 </head>
 
@@ -400,11 +485,11 @@ table{width:100%;border-collapse:collapse}
     <div class="map-toolbar" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:8px 0"><button id="addPlotOnMapBtn" type="button">+ Add Plot on Map</button><span id="mapPlotMode" class="muted">Normal map mode</span></div><div id="mapViewport" class="mapviewport">
       <img
         id="masterMap"
-        src="assets/gokuldham-map.png"
+        src="assets/gokuldham.png"
         alt="Gokul Dham Sector-13 Hansi map"
         draggable="false"
-        onerror="this.style.display='none'">
-      <div id="mapPlotLayer"></div>
+        onerror="this.style.display='none';document.getElementById('mapLoadError')?.removeAttribute('hidden')">
+      <div id="mapPlotLayer"></div><div id="mapLoadError" hidden style="position:absolute;inset:12px;z-index:2;display:flex;align-items:center;justify-content:center;text-align:center;padding:20px;color:#fff;background:#111;font-weight:600">Map image could not be loaded. Check the assets/gokuldham.png file.</div>
     </div>
   </div>
 
@@ -559,12 +644,42 @@ table{width:100%;border-collapse:collapse}
 </main>
 
 <nav style="position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);display:flex;justify-content:center;gap:8px;padding:8px;z-index:30">
-  <button onclick="show('dashboard')">Dashboard</button>
-  <button onclick="show('leads')">Leads</button>
-  <button onclick="show('map')">Map</button>
-  <button onclick="show('plots')">Plots</button>
-  <button onclick="show('collections')">Collections</button><button onclick="show('dealers')">Dealers</button><button onclick="showMainDashboard()">Overview</button><button onclick="showPlotLeadHistoryPanel()">Lead History</button><button onclick="show('reports')">Reports</button><button onclick="showFinanceReports()">Finance</button><button onclick="showProfitDashboard()">Profit</button>
+  <button onclick="show('dashboard')">🏠<br><span>Home</span></button>
+  <button onclick="show('leads')">👥<br><span>Leads</span></button>
+  <button onclick="show('map')">🗺️<br><span>Map</span></button>
+  <button onclick="show('collections')">💰<br><span>Collection</span></button>
+  <button class="mobile-more-btn" type="button" onclick="toggleMobileMore()">☰<br><span>More</span></button>
+
+  <div class="desktop-nav-extra">
+    <button onclick="show('plots')">Plots</button>
+    <button onclick="show('collections')">Collections</button>
+    <button onclick="show('dealers')">Dealers</button>
+    <button onclick="showMainDashboard()">Overview</button>
+    <button onclick="showPlotLeadHistoryPanel()">Lead History</button>
+    <button onclick="show('reports')">Reports</button>
+    <button onclick="showFinanceReports()">Finance</button>
+    <button onclick="showProfitDashboard()">Profit</button>
+  </div>
 </nav>
+
+<div id="mobileMoreBackdrop" style="display:none" onclick="toggleMobileMore()"></div>
+<div id="mobileMorePanel" style="display:none">
+  <div class="row" style="margin-bottom:8px">
+    <b>CRM Menu</b>
+    <button type="button" class="secondary" onclick="toggleMobileMore()">✕</button>
+  </div>
+  <div class="mobile-more-grid">
+    <button onclick="toggleMobileMore();show('plots')">🏠<br>Plots</button>
+    <button onclick="toggleMobileMore();show('dealers')">🤝<br>Dealers</button>
+    <button onclick="toggleMobileMore();showMainDashboard()">📊<br>Overview</button>
+    <button onclick="toggleMobileMore();showPlotLeadHistoryPanel()">📋<br>Lead History</button>
+    <button onclick="toggleMobileMore();show('reports')">📑<br>Reports</button>
+    <button onclick="toggleMobileMore();showFinanceReports()">💳<br>Finance</button>
+    <button onclick="toggleMobileMore();showProfitDashboard()">📈<br>Profit</button>
+    <button onclick="toggleMobileMore();show('collections')">💰<br>Collections</button>
+    <button onclick="toggleMobileMore();show('map')">🗺️<br>Map</button>
+  </div>
+</div>
 
 <dialog id="leadActivityDlg" class="plotdetail-dialog">
   <div class="plotdetail-body">
@@ -893,6 +1008,16 @@ function normalizeCRMData(){
     if(!Array.isArray(p.linkedLeadIds))p.linkedLeadIds=[];
     if(p.leadId && !p.linkedLeadIds.includes(p.leadId))p.linkedLeadIds.push(p.leadId);
   });
+}
+
+
+function toggleMobileMore(){
+  const panel=$('mobileMorePanel');
+  const backdrop=$('mobileMoreBackdrop');
+  if(!panel)return;
+  const open=panel.style.display!=='none';
+  panel.style.display=open?'none':'block';
+  if(backdrop)backdrop.style.display=open?'none':'block';
 }
 
 function init(){
