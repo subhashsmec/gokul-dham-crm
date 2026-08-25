@@ -369,7 +369,7 @@ table{width:100%;border-collapse:collapse}
   </div>
 </section>
 
-<section id="leads class="view">
+<section id="leads" class="view">
   <div class="row"><h2>Leads</h2><button onclick="openLead()">+ Add Lead</button></div>
   <div class="filters">
     <input id="search" placeholder="Search name/mobile/category/location..." oninput="renderLeads()">
@@ -2316,7 +2316,7 @@ function ensurePlotLeadHistory(){
       <div class="field"><label>Customer</label><input id="historyCustomer" placeholder="Customer name"></div>
       <div class="field"><label>Customer Mobile</label><input id="historyCustomerMobile" placeholder="Mobile"></div>
       <div class="field"><label>Lead Date</label><input id="historyLeadDate" type="date"></div>
-      <div class="field"><label>Demand / Expected Price (₹)</label><input id="historyDemand" type="number" min="0" step="1"></div>
+      <div class="field"><label>Demand / Expected Price (₹)</label><input id="historyDemand" type="number" min="1" step="1" inputmode="numeric" placeholder="e.g. 5000000" required></div>
       <div class="field"><label>Lead Source</label>
         <select id="historySource"><option>Dealer</option><option>Facebook</option><option>WhatsApp</option><option>Direct</option><option>Website</option><option>Referral</option><option>Other</option></select>
       </div>
@@ -2354,18 +2354,25 @@ function addPlotLeadHistory(){
   if(!plot){alert('Plot number required.');return;}
   if(!dealer){alert('Dealer name required.');return;}
   if(!customer){alert('Customer name required.');return;}
-  if(demand<0){alert('Demand amount invalid.');return;}
+  if(!Number.isFinite(demand)||demand<=0){alert('Demand amount must be greater than 0.');$('historyDemand').focus();return;}
+
+  const mobile=String($('historyCustomerMobile').value||'').trim();
+  if(mobile && !/^\+?[0-9]{10,13}$/.test(mobile.replace(/[\s-]/g,''))){alert('Customer mobile number invalid.');$('historyCustomerMobile').focus();return;}
+
+  const allowedHistoryStatuses=['New','Follow-up','Negotiation','Lost','Sold'];
+  const selectedHistoryStatus=$('historyStatus').value;
+  if(!allowedHistoryStatuses.includes(selectedHistoryStatus)){alert('Invalid lead status.');return;}
 
   const entry={
     id:uid(),
     plotNo:plot,
     dealerName:dealer,
     customerName:customer,
-    customerMobile:String($('historyCustomerMobile').value||'').trim(),
+    customerMobile:mobile,
     leadDate:$('historyLeadDate').value||localDateISO(),
     demand,
     source:$('historySource').value,
-    status:$('historyStatus').value,
+    status:selectedHistoryStatus,
     note:String($('historyNote').value||'').trim(),
     createdAt:new Date().toISOString()
   };
@@ -2387,6 +2394,8 @@ function updatePlotLeadStatus(id,status){
   ensurePlotLeadHistoryData();
   const x=db.plotLeadHistory.find(v=>v.id===id);
   if(!x)return;
+  const allowedHistoryStatuses=['New','Follow-up','Negotiation','Lost','Sold'];
+  if(!allowedHistoryStatuses.includes(status))return;
   x.status=status;
   x.updatedAt=new Date().toISOString();
   save();
@@ -2413,7 +2422,7 @@ function renderPlotLeadHistory(){
     const text=[x.plotNo,x.dealerName,x.customerName,x.customerMobile,x.source,x.note].join(' ').toLowerCase();
     return (!q||text.includes(q)) &&
       (!status||x.status===status) &&
-      (!plotFilter||String(x.plotNo).toLowerCase().includes(plotFilter));
+      (!plotFilter||String(x.plotNo).trim().toLowerCase()===plotFilter);
   }).sort((a,b)=>String(b.leadDate||'').localeCompare(String(a.leadDate||'')));
 
   const uniquePlots=new Set(db.plotLeadHistory.map(x=>x.plotNo)).size;
