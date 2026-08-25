@@ -369,7 +369,7 @@ table{width:100%;border-collapse:collapse}
   </div>
 </section>
 
-<section id="leads" class="view">
+<section id="leads class="view">
   <div class="row"><h2>Leads</h2><button onclick="openLead()">+ Add Lead</button></div>
   <div class="filters">
     <input id="search" placeholder="Search name/mobile/category/location..." oninput="renderLeads()">
@@ -1525,6 +1525,7 @@ function openPlotDetails(id){
   const actions=$('plotDetailsActions');
   actions.innerHTML=`
     <button type="button" class="edit" onclick="closePlotDetails();openPlot('${p.id}')">✏️ Edit Plot</button>
+    <button type="button" onclick="closePlotDetails();showPlotLeadHistory('${p.number}')">📋 Lead History</button>
     <button type="button" onclick="openLinkExistingLead('${p.id}')">🔗 Link Existing Lead</button>
     <button type="button" class="close" onclick="closePlotDetails()">Close</button>
   `;
@@ -1972,7 +1973,7 @@ function printReceipt(){
   if(!box)return;
   const w=window.open('','_blank','width=800,height=700');
   if(!w){alert('Please allow pop-ups to print the receipt.');return;}
-  w.document.write(`<html><head><title>Payment Receipt</title><style>body{font-family:Arial;padding:30px}.receipt{max-width:700px;margin:auto;border:1px solid #ddd;padding:24px}.receipt h2{text-align:center}.receipt-title{text-align:center;color:#666;margin-bottom:18px}.receipt-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px dashed #ddd}.receipt-total{font-size:20px;font-weight:800;margin-top:14px;text-align:right}</style></head><body>${box.outerHTML}<script>window.onload=function(){window.print();}<\/script></body></html>`);
+  w.document.write(`<html><head><title>Payment Receipt</title><style>body{font-family:Arial;padding:30px}.receipt{max-width:700px;margin:auto;border:1px solid #ddd;padding:24px}.receipt h2{text-align:center}.receipt-title{text-align:center;color:#666;margin-bottom:18px}.receipt-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px dashed #ddd}.receipt-total{font-size:20px;font-weight:800;margin-top:14px;text-align:right}</style></head><body>${box.outerHTML}<script>window.onload=function(){window.print();}</script></body></html>`);
   w.document.close();
 }
 
@@ -2217,7 +2218,7 @@ function openDealerStatement(){
   const plots=sold.reduce((s,l)=>s+(String(l.dealPlotNumbers||'').split(/[,/&]+/).filter(Boolean).length||1),0);
   const w=window.open('','_blank','width=1100,height=800');
   if(!w){alert('Please allow pop-ups to print the statement.');return;}
-  w.document.write(`<html><head><title>Dealer Statement</title><style>body{font-family:Arial;padding:28px}h1{text-align:center}.summary{display:flex;gap:10px}.box{border:1px solid #ddd;padding:12px;flex:1}table{width:100%;border-collapse:collapse;margin-top:20px}th,td{border:1px solid #ddd;padding:8px;font-size:12px;text-align:left}</style></head><body><h1>Gokul Dham — Dealer Statement</h1><p style="text-align:center">Dealer: ${esc(dealer)} · Date: ${localDateISO()}</p><div class="summary"><div class="box"><b>Plots Sold</b><br>${plots}</div><div class="box"><b>Deal Value</b><br>${money(deal)}</div><div class="box"><b>Commission Paid</b><br>${money(paid)}</div><div class="box"><b>Commission Pending</b><br>${money(pending)}</div></div><table><tr><th>Status</th><th>Customer</th><th>Plot</th><th>Deal</th><th>Commission</th><th>Paid</th><th>Pending</th></tr>${rows.map(l=>{const c=commissionCalc(l);return `<tr><td>${esc(l.status||'')}</td><td>${esc(l.name)}</td><td>${esc(l.dealPlotNumbers||'—')}</td><td>${money(l.dealPrice||0)}</td><td>${money(c.total)}</td><td>${money(c.paid)}</td><td>${money(c.pending)}</td></tr>`}).join('')}</table><script>window.onload=function(){window.print()}<\/script></body></html>`);
+  w.document.write(`<html><head><title>Dealer Statement</title><style>body{font-family:Arial;padding:28px}h1{text-align:center}.summary{display:flex;gap:10px}.box{border:1px solid #ddd;padding:12px;flex:1}table{width:100%;border-collapse:collapse;margin-top:20px}th,td{border:1px solid #ddd;padding:8px;font-size:12px;text-align:left}</style></head><body><h1>Gokul Dham — Dealer Statement</h1><p style="text-align:center">Dealer: ${esc(dealer)} · Date: ${localDateISO()}</p><div class="summary"><div class="box"><b>Plots Sold</b><br>${plots}</div><div class="box"><b>Deal Value</b><br>${money(deal)}</div><div class="box"><b>Commission Paid</b><br>${money(paid)}</div><div class="box"><b>Commission Pending</b><br>${money(pending)}</div></div><table><tr><th>Status</th><th>Customer</th><th>Plot</th><th>Deal</th><th>Commission</th><th>Paid</th><th>Pending</th></tr>${rows.map(l=>{const c=commissionCalc(l);return `<tr><td>${esc(l.status||'')}</td><td>${esc(l.name)}</td><td>${esc(l.dealPlotNumbers||'—')}</td><td>${money(l.dealPrice||0)}</td><td>${money(c.total)}</td><td>${money(c.paid)}</td><td>${money(c.pending)}</td></tr>`}).join('')}</table><script>window.onload=function(){window.print()}</script></body></html>`);
   w.document.close();
 }
 
