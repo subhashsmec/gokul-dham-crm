@@ -563,7 +563,7 @@ table{width:100%;border-collapse:collapse}
   <button onclick="show('leads')">Leads</button>
   <button onclick="show('map')">Map</button>
   <button onclick="show('plots')">Plots</button>
-  <button onclick="show('collections')">Collections</button><button onclick="show('dealers')">Dealers</button><button onclick="showMainDashboard()">Dashboard</button><button onclick="showPlotLeadHistoryPanel()">Lead History</button><button onclick="show('reports')">Reports</button><button onclick="showFinanceReports()">Finance</button><button onclick="showProfitDashboard()">Profit</button>
+  <button onclick="show('collections')">Collections</button><button onclick="show('dealers')">Dealers</button><button onclick="showMainDashboard()">Overview</button><button onclick="showPlotLeadHistoryPanel()">Lead History</button><button onclick="show('reports')">Reports</button><button onclick="showFinanceReports()">Finance</button><button onclick="showProfitDashboard()">Profit</button>
 </nav>
 
 <dialog id="leadActivityDlg" class="plotdetail-dialog">
@@ -902,21 +902,32 @@ function init(){
   }
 
   save();
-  renderAll();
+  renderDashboard();
   setupMap();
 }
 
-function show(id){
-  document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
-  $(id).classList.add('active');
-  if(id==='leads')renderLeads();
-  if(id==='dashboard')renderDashboard();
-  if(id==='plots')renderPlots();
-  if(id==='reports')renderReports();
-  if(id==='collections')renderCollectionDashboard();
-  if(id==='dealers')renderDealerDashboard();
-  if(id==='map')setTimeout(()=>mapFitIfNeeded(),50);
+function activateCRMView(id, renderer){
+  document.querySelectorAll('.view').forEach(x=>{x.classList.remove('active'); x.style.display='';});
+  const panel=$(id);
+  if(!panel)return;
+  panel.classList.add('active');
+  panel.style.display='block';
+  if(renderer)renderer();
   window.scrollTo(0,0);
+}
+
+function show(id){
+  if(id==='dealers')ensureDealerDashboard();
+  const renderers={
+    dashboard:renderDashboard,
+    leads:renderLeads,
+    plots:renderPlots,
+    reports:renderReports,
+    collections:renderCollectionDashboard,
+    dealers:renderDealerDashboard
+  };
+  activateCRMView(id, renderers[id]);
+  if(id==='map')setTimeout(()=>mapFitIfNeeded(),50);
 }
 
 function openLead(id=''){
@@ -1883,6 +1894,101 @@ function rescheduleFollowup(id){
 
 
 
+function paymentTotals(l){
+  const total=Math.max(0,Number(l?.dealPrice||0));
+  const history=Array.isArray(l?.paymentHistory)?l.paymentHistory:[];
+  const historyPaid=history.reduce((sum,p)=>sum+Math.max(0,Number(p?.amount||0)),0);
+  const paid=Math.min(total,Math.max(0,Number(l?.paidAmount||0),historyPaid));
+  const balance=Math.max(0,total-paid);
+  return {total,paid,balance};
+}
+
+function updatePaymentStatusFromPaid(l){
+  if(!l)return;
+  const t=paymentTotals(l);
+  const token=Math.max(0,Number(l.tokenAmount||0));
+  if(t.total>0 && t.paid>=t.total){
+    l.paymentStatus='Fully Paid';
+  }else if(token>0 && t.paid>=token){
+    l.paymentStatus='Token Paid';
+  }else if(t.paid>0){
+    l.paymentStatus='Part Payment';
+  }else if(token>0){
+    l.paymentStatus='Token Pending';
+  }else{
+    l.paymentStatus='Not Started';
+  }
+  l.paidAmount=t.paid;
+}
+
+function openPayment(id){
+  const l=db.leads.find(x=>x.id===id);
+  if(!l)return;
+  const t=paymentTotals(l);
+  if(t.balance<=0){
+    alert('Is deal ki payment already fully received hai.');
+    return;
+  }
+  $('paymentLeadId').value=id;
+  $('paymentDlgTitle').textContent='Add Payment';
+  $('paymentLeadMeta').textContent=`${l.name} · ${l.mobile||''} · Plot ${l.dealPlotNumbers||'Not set'} · Balance ${money(t.balance)}`;
+  $('paymentCurrentSummary').innerHTML=`<div class="payment-grid"><div><span class="muted">Deal Value</span><b>${money(t.total)}</b></div><div><span class="muted">Paid</span><b>${money(t.paid)}</b></div><div><span class="muted">Balance</span><b>${money(t.balance)}</b></div></div>`;
+  $('paymentAmount').value='';
+  $('paymentAmount').max=String(t.balance);
+  $('paymentDate').value=localDateISO();
+  $('paymentMode').value='Cash';
+  $('paymentRef').value='';
+  $('paymentNote').value='';
+  paymentDlg.showModal();
+}
+
+function savePayment(e){
+  e.preventDefault();
+  const id=$('paymentLeadId').value;
+  const l=db.leads.find(x=>x.id===id);
+  if(!l)return;
+  const t=paymentTotals(l);
+  const amount=Number($('paymentAmount').value||0);
+  if(amount<=0){alert('Payment amount 0 se zyada hona chahiye.');return;}
+  if(amount>t.balance){alert('Payment amount outstanding balance se zyada nahi ho sakta.');return;}
+  if(!Array.isArray(l.paymentHistory))l.paymentHistory=[];
+  l.paymentHistory.unshift({
+    id:uid(),
+    date:$('paymentDate').value||localDateISO(),
+    amount,
+    mode:$('paymentMode').value||'Other',
+    reference:$('paymentRef').value.trim(),
+    note:$('paymentNote').value.trim(),
+    at:new Date().toISOString()
+  });
+  l.paidAmount=t.paid+amount;
+  updatePaymentStatusFromPaid(l);
+  if(paymentTotals(l).balance<=0){
+    l.nextPaymentDate='';
+    l.nextPaymentAmount=0;
+    l.nextPaymentStatus='Paid';
+    l.nextPaymentNote='';
+  }
+  l.updated=new Date().toISOString();
+  save();
+  paymentDlg.close();
+  renderAll();
+  alert('Payment saved: '+money(amount));
+}
+
+function showPaymentHistory(id){
+  const l=db.leads.find(x=>x.id===id);
+  if(!l || !Array.isArray(l.paymentHistory) || !l.paymentHistory.length){
+    alert('No payment history found.');
+    return;
+  }
+  const t=paymentTotals(l);
+  const lines=l.paymentHistory.map((p,i)=>
+    `${i+1}. ${p.date||''} · ${money(p.amount||0)} · ${p.mode||'Other'}${p.reference?' · Ref: '+p.reference:''}`
+  );
+  alert(`Payment History\n\nCustomer: ${l.name}\nPlot: ${l.dealPlotNumbers||'Not set'}\nDeal: ${money(t.total)}\nPaid: ${money(t.paid)}\nBalance: ${money(t.balance)}\n\n${lines.join('\n')}`);
+}
+
 function openPaymentSchedule(id){
   const l=db.leads.find(x=>x.id===id);
   if(!l)return;
@@ -2225,9 +2331,7 @@ function openDealerStatement(){
 function ensureProfitDashboard(){
   let panel=$('profitDashboardPanel');
   if(panel)return;
-  const nav=[...document.querySelectorAll('button')].find(b=>(b.textContent||'').includes('Reports'));
-  const reports=document.querySelector('#reports')||document.querySelector('[id*="report"]');
-  const host=reports||document.querySelector('main')||document.body;
+  const host=document.querySelector('main')||document.body;
   panel=document.createElement('section');
   panel.id='profitDashboardPanel';
   panel.className='view card';
@@ -2589,7 +2693,7 @@ function renderMainDashboard(){
 function ensureFinanceReports(){
   let panel=$('financeReportsPanel');
   if(panel)return;
-  const host=$('profitDashboardPanel') || document.querySelector('main') || document.body;
+  const host=document.querySelector('main')||document.body;
   panel=document.createElement('section');
   panel.id='financeReportsPanel';
   panel.className='card';
@@ -2762,6 +2866,36 @@ function deleteCRMExpense(id){
   renderProfitDashboard();
 }
 
+function ensureDealerDashboard(){
+  let panel=$('dealers');
+  if(panel)return;
+  const host=document.querySelector('main')||document.body;
+  panel=document.createElement('section');
+  panel.id='dealers';
+  panel.className='view';
+  panel.innerHTML=`
+    <div class="row"><h2>🤝 Dealers & Commission</h2><button type="button" onclick="renderDealerDashboard()">↻ Refresh</button></div>
+    <div class="collection-grid" style="margin-top:12px">
+      <div class="collection-card"><div class="muted">Dealer Deals</div><div id="dealerDealCount" class="metric">0</div></div>
+      <div class="collection-card"><div class="muted">Deal Value</div><div id="dealerDealValue" class="metric">₹0</div></div>
+      <div class="collection-card"><div class="muted">Commission Total</div><div id="dealerCommissionTotal" class="metric">₹0</div></div>
+      <div class="collection-card"><div class="muted">Commission Pending</div><div id="dealerCommissionPending" class="metric">₹0</div></div>
+    </div>
+    <div class="card" style="margin-top:12px">
+      <div class="filters">
+        <input id="dealerSearch" placeholder="Search dealer / customer / plot..." oninput="renderDealerDashboard()">
+        <select id="dealerSourceFilter" onchange="renderDealerDashboard()">
+          <option value="">All Sources</option><option>Dealer</option><option>Facebook</option><option>Google</option><option>Instagram</option><option>WhatsApp</option><option>Reference</option><option>Direct</option><option>Other</option>
+        </select>
+        <select id="dealerCommissionFilter" onchange="renderDealerDashboard()">
+          <option value="">All Commission</option><option value="pending">Pending</option><option value="paid">Fully Paid</option>
+        </select>
+      </div>
+      <div id="dealerList" class="tablewrap" style="margin-top:12px"></div>
+    </div>`;
+  host.appendChild(panel);
+}
+
 function renderDealerDashboard(){
   ensureDealerStatementPanel();
   renderDealerPerformance();
@@ -2910,18 +3044,18 @@ function refreshCollectionDashboard(){
 }
 
 function renderAll(){
-  ensurePlotLeadHistory();
-  renderPlotLeadHistory();
-  ensureMainDashboard();
-  renderMainDashboard();
-  ensureFinanceReports();
-  renderFinanceReports();
-  ensureProfitDashboard();
-  renderProfitDashboard();
-  renderLeads();
-  renderPlots();
-  renderDashboard();
-  renderReports();
+  const active=document.querySelector('.view.active')?.id||'dashboard';
+  if(active==='dashboard')renderDashboard();
+  else if(active==='leads')renderLeads();
+  else if(active==='map'){renderPlots();renderMapPlotMarkers();}
+  else if(active==='plots')renderPlots();
+  else if(active==='collections')renderCollectionDashboard();
+  else if(active==='dealers')renderDealerDashboard();
+  else if(active==='reports')renderReports();
+  else if(active==='mainDashboardPanel')renderMainDashboard();
+  else if(active==='plotLeadHistoryPanel')renderPlotLeadHistory();
+  else if(active==='financeReportsPanel')renderFinanceReports();
+  else if(active==='profitDashboardPanel')renderProfitDashboard();
 }
 
 /* =========================
@@ -3258,48 +3392,28 @@ function setupMap(){
 
   updateMap();
 }
+function showProfitDashboard(){
+  ensureProfitDashboard();
+  activateCRMView('profitDashboardPanel',renderProfitDashboard);
+}
+
+function showFinanceReports(){
+  ensureFinanceReports();
+  activateCRMView('financeReportsPanel',renderFinanceReports);
+}
+
+function showMainDashboard(){
+  ensureMainDashboard();
+  activateCRMView('mainDashboardPanel',renderMainDashboard);
+}
+
+function showPlotLeadHistoryPanel(){
+  ensurePlotLeadHistory();
+  activateCRMView('plotLeadHistoryPanel',renderPlotLeadHistory);
+}
+
 init();
 </script>
 
 </body>
 </html>
-
-<script>
-function showProfitDashboard(){
-  ensureProfitDashboard();
-  document.querySelectorAll('.view').forEach(v=>v.style.display='none');
-  const p=$('profitDashboardPanel');
-  if(p)p.style.display='block';
-  renderProfitDashboard();
-}
-</script>
-
-<script>
-function showFinanceReports(){
-  ensureFinanceReports();
-  document.querySelectorAll('.view').forEach(v=>v.style.display='none');
-  const p=$('financeReportsPanel');
-  if(p)p.style.display='block';
-  renderFinanceReports();
-}
-</script>
-
-<script>
-function showMainDashboard(){
-  ensureMainDashboard();
-  document.querySelectorAll('.view').forEach(v=>v.style.display='none');
-  const p=$('mainDashboardPanel');
-  if(p)p.style.display='block';
-  renderMainDashboard();
-}
-</script>
-
-<script>
-function showPlotLeadHistoryPanel(){
-  ensurePlotLeadHistory();
-  document.querySelectorAll('.view').forEach(v=>v.style.display='none');
-  const p=$('plotLeadHistoryPanel');
-  if(p)p.style.display='block';
-  renderPlotLeadHistory();
-}
-</script>
