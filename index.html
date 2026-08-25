@@ -1733,7 +1733,7 @@ function renderPlots(){
 
       <div class="actions">
         <button onclick="openPlot('${p.id}')">Edit</button>
-        <button class="plot-mapbtn" onclick="show('map')">Open Map</button>
+        <button class="plot-mapbtn" onclick="show('map')">Open Map</button><button onclick="showPlotLeadHistory('${p.number}')">📋 Lead History</button>
         <button class="danger" onclick="delPlot('${p.id}')">Delete</button>
       </div>
     </div>`;
